@@ -5,6 +5,10 @@ To run a trainings simply use the `start_training_run.sh` script from within the
 This will trigger to other scripts in this order: `start_**_training.sh` and `run_and_time.sh`, where `**` 
 is the training system (`jb` for JUWELS Booster and `horeka` for HoreKa).
 
+Example usage:
+```bash
+./start_training_run --system booster --nodes 34 --time 01:00:00 --config "config_file_path"
+```
 
 # Offical Repo
 
