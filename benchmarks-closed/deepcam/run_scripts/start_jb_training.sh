@@ -15,7 +15,7 @@ export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/deepCam/"
 export WIREUP_METHOD="nccl-slurm"
 export SEED="0"
 
-hhai_dir="/p/project/jb_benchmark/MLPerf-1.0/HelmholzAI/"
+hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
 base_dir="${hhai_dir}benchmarks-closed/deepcam/"
 export DEEPCAM_DIR="${base_dir}image-src/"
 #"/opt/deepCam/"
