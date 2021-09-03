@@ -16,13 +16,13 @@ export WIREUP_METHOD="nccl-slurm-pmi"
 export SEED="0"
 
 
-hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf/"
+hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
 base_dir="${hhai_dir}benchmarks-closed/deepcam/"
 export DEEPCAM_DIR="${base_dir}image-src/"
 #"/opt/deepCam/"
 
 SCRIPT_DIR="${base_dir}run_scripts/"
-SINGULARITY_FILE="${base_dir}docker/nvidia-optimized-torch.sif"
+SINGULARITY_FILE="${base_dir}docker/nvidia-optimized-image-2.sif"
 
 export OUTPUT_ROOT="${hhai_dir}results/"
 export OUTPUT_DIR="${OUTPUT_ROOT}"

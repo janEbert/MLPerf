@@ -52,11 +52,14 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
 
 elif [ "$TRAINING_SYSTEM" == "horeka" ]
   then
+    hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
+    export OUTPUT_ROOT="${hhai_dir}results/"
+    export OUTPUT_DIR="${OUTPUT_ROOT}"
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"
       --output        "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.out"
-      --error         "${OUTPUT_DIR}slurm-deepcam-HoreKa-${SLURM_NNODES}-%j.err"
+      --error         "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.err"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else
