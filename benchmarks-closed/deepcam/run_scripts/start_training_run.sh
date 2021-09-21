@@ -46,7 +46,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "jb_benchmark"
+      --account       "jucha"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 
