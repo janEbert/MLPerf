@@ -15,19 +15,29 @@ export SLURM_CPU_BIND_USER_SET="ldoms"
 
 export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
 
-export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/run-logs"
+hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
+base_dir="${hhai_dir}benchmarks-closed/cosmoflow/"
 
-export DEEPCAM_DIR="/opt/deepCam/"
+export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results"
+
+export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
+# director for image: /workspace/cosmoflow/
 #export CUDA_AVAILABLE_DEVICES="0,1,2,3"
 
-SCRIPT_DIR="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
+SCRIPT_DIR="${base_dir}"
+#"/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
 SINGULARITY_FILE="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
 
-CONFIG_FILE="${SCRIPT_DIR}cosmoflow/configs/config_DGXA100_common.sh"
+if [ -n "${CONFIG_FILE}" ]
+  then
+    export CONFIG_FILE="${SCRIPT_DIR}cosmoflow/configs/config_DGXA100_common.sh"
+fi
+echo "${CONFIG_FILE}"
+cat "${CONFIG_FILE}"
+
 
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-  --bind "${DATA_DIR_PREFIX}":/data ${SINGULARITY_FILE} \
+  --bind "${DATA_DIR_PREFIX}":/data,${SCRIPT_DIR},${OUTPUT_ROOT} ${SINGULARITY_FILE} \
     bash -c "\
       source ${CONFIG_FILE}; \
-      export SLURM_CPU_BIND_USER_SET=\"none\"; \
       bash run_and_time.sh"
