@@ -55,9 +55,8 @@ from data import get_dataloaders, get_datashapes
 from architecture import deeplab_xception
 
 # data staging stuff
-from data import stage_data as sd
-#from data import stage_data_v2 as sd
-from data import stage_archived_data as sda 
+#from data import stage_data_oo as sd
+from data import stage_data_v2_oo as sd
 
 # DDP
 import torch.distributed as dist
@@ -99,21 +98,38 @@ def main(pargs):
     
     # stage data if requested
     if pargs.stage_dir_prefix is not None:
-        full_dataset_per_node = pargs.stage_full_data_per_node
         num_instances = mpi_comm.Get_size() // mpi_instance_comm.Get_size()
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
-        stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
-        global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
-                                                                      comm_local_size, comm_local_rank,
-                                                                      pargs, verify = pargs.stage_verify,
-                                                                      full_dataset_per_node = full_dataset_per_node,
-                                                                      use_direct_io = pargs.stage_use_direct_io,
-                                                                      seed = pargs.seed,
-                                                                      prepare_staging = True)
+        stager = sd.FileStager(mpi_comm,
+                               num_instances,
+                               instance_id,
+                               mpi_instance_comm,
+                               comm_local_size,
+                               comm_local_rank,
+                               batch_size = pargs.stage_batch_size,
+                               num_workers = pargs.stage_num_workers,
+                               stage_mode = pargs.stage_mode,
+                               verify = pargs.stage_verify,
+                               full_dataset_per_node = pargs.stage_full_data_per_node,
+                               use_direct_io = pargs.stage_use_direct_io,
+                               seed=333)
+
+        # prepare staging
+        stager.prepare(pargs.data_dir_prefix,
+                       pargs.stage_dir_prefix,
+                       stage_filter_list = ['validation/data-*.npy', 'validation/label-*.npy',
+                                            'train/data-*.npy', 'train/label-*.npy'])
+
+        # get sizes of dataset
+        assert(stager.file_stats['train/data-*.npy']["num_files"] == stager.file_stats['train/label-*.npy']["num_files"])
+        assert(stager.file_stats['validation/data-*.npy']["num_files"] == stager.file_stats['validation/label-*.npy']["num_files"])
+        global_train_size = stager.file_stats['train/data-*.npy']["num_files"]
+        global_validation_size = stager.file_stats['validation/data-*.npy']["num_files"]
+
         # we need to adjust a few parameters or otherwise the
         # sharding and shuffling will be wrong
         root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
-        if not full_dataset_per_node:
+        if not pargs.stage_full_data_per_node:
             pargs.shuffle_mode = "global"
             num_shards = comm_local_size
             shard_id = comm_local_rank
@@ -364,16 +380,7 @@ def main(pargs):
     # stage the data or start prefetching
     if pargs.stage_dir_prefix is not None:
         logger.log_start(key = "staging_start")
-        # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
-        global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
-                                                                      comm_local_size, comm_local_rank,
-                                                                      pargs, verify = pargs.stage_verify,
-                                                                      full_dataset_per_node = full_dataset_per_node,
-                                                                      use_direct_io = pargs.stage_use_direct_io,
-                                                                      seed = pargs.seed,
-                                                                      prepare_staging = False)
-        # we need to adjust a few parameters or otherwise the
-        # sharding and shuffling will be wrong
+        stager.execute_stage()
         logger.log_end(key = "staging_stop", sync = True)
 
         # exit here if we only want to stage

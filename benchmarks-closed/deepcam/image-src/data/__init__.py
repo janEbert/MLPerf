@@ -6,26 +6,14 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import DistributedSampler
 
-from .cam_hdf5_dataset import CamDataset, peek_shapes_hdf5
-from .cam_numpy_dali_dataset import CamDaliNumpyDataloader, peek_shapes_numpy
-from .cam_recordio_dali_dataset import CamDaliRecordIODataloader, peek_shapes_recordio
+from .cam_hdf5_dataset import CamDataset
+from .cam_numpy_dali_dataset import CamDaliNumpyDataloader
+from .cam_recordio_dali_dataset import CamDaliRecordIODataloader
 from .cam_es_dali_dataset import CamDaliESDataloader
 from .cam_es_disk_dali_dataset import CamDaliESDiskDataloader
-from .dummy_dali_dataset import DummyDaliDataloader, peek_shapes_dummy
-
-# helper function for determining the data shapes
-def get_datashapes(pargs, root_dir):
+from .dummy_dali_dataset import DummyDaliDataloader
+from .common import get_datashapes
     
-    if pargs.data_format == "hdf5":
-        return peek_shapes_hdf5(os.path.join(root_dir, "train"))
-    else:
-        if (pargs.data_format == "dali-numpy") or (pargs.data_format == "dali-es") or (pargs.data_format == "dali-es-disk"):
-            return peek_shapes_numpy(os.path.join(root_dir, "train"))
-        elif pargs.data_format == "dali-recordio":
-            return peek_shapes_recordio()
-        else:
-            return peek_shapes_dummy()
-
         
 # helper function to de-clutter the main training script
 def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
