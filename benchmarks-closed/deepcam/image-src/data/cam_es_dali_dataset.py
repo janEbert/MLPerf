@@ -1,4 +1,6 @@
 import os
+import mmap
+import io
 import sys
 import glob
 import h5py as h5
@@ -131,6 +133,7 @@ class NumpyExternalSource(object):
         self.process_pool = cf.ThreadPoolExecutor(max_workers = num_threads)
         self.prefetching_started = False
         self.cache_ready = False
+        self.use_direct_io = False
 
         # running parameters
         self.chunk_idx = 0
@@ -177,24 +180,49 @@ class NumpyExternalSource(object):
         return self.file_cache[data_filename], self.file_cache[label_filename]
 
 
+    def _load_sample(self, filename):
+        if not self.use_direct_io:
+            token = np.load(filename)
+        else:
+            # open file
+            fd = os.open(filename, os.O_RDONLY | os.O_DIRECT)
+
+            # check file size:
+            stat = os.fstat(fd)
+            readsize = stat.st_size
+
+            # create mmap
+            mm = mmap.mmap(fd, readsize, offset=0, access=mmap.ACCESS_READ)
+            data = mm.read(readsize)
+            mm.close()
+
+            # close file
+            os.close(fd)
+
+            # convert to numpy
+            token = np.load(io.BytesIO(data))
+            
+        return token
+    
+
     def _get_sample_test(self, data_filename, label_filename, batch_id):
         if data_filename in self.file_cache:
             data = self.file_cache[data_filename]
         else:
             data = self.data_batch[batch_id]
-            data[...] = np.load(data_filename)[...]
+            data[...] = self._load_sample(data_filename)[...]
 
         if label_filename in self.file_cache:
             label = self.file_cache[label_filename]
         else:
             label = self.label_batch[batch_id]
-            label[...] = np.load(label_filename)[...]
+            label[...] = self._load_sample(label_filename)[...]
             
         return data, label
     
     
     def _prefetch_sample(self, data_filename, label_filename):
-        data, label = np.load(data_filename), np.load(label_filename)
+        data, label = self._load_sample(data_filename), self._load_sample(label_filename)
         return data_filename, data, label_filename, label
     
     
@@ -285,16 +313,16 @@ class CamDaliESDataloader(object):
         if file_list_data is not None and os.path.isfile(os.path.join(root_dir, file_list_data)):
             with open(os.path.join(root_dir, file_list_data), "r") as f:
                 token = f.readlines()
-            self.data_files = [os.path.join(root_dir, x.strip()) for x in token]
+            self.data_files = sorted([os.path.join(root_dir, x.strip()) for x in token])
         else:
-            self.data_files = glob.glob(os.path.join(self.root_dir, self.prefix_data))
+            self.data_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_data)))
         # label
         if file_list_label is not None and os.path.isfile(os.path.join(root_dir, file_list_label)):
             with open(os.path.join(root_dir, file_list_label), "r") as f:
                 token = f.readlines()
-            self.label_files = [os.path.join(root_dir, x.strip()) for x in token]
+            self.label_files = sorted([os.path.join(root_dir, x.strip()) for x in token])
         else:
-            self.label_files = glob.glob(os.path.join(self.root_dir, self.prefix_label))
+            self.label_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_label)))
 
         # get shapes
         self.data_shape = np.load(self.data_files[0]).shape

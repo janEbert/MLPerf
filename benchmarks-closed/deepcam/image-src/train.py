@@ -75,10 +75,11 @@ def main(pargs):
     comm_rank = comm.get_rank()
     comm_local_rank = comm.get_local_rank()
     comm_size = comm.get_size()
+    comm_local_size = comm.get_local_size()
     
     # set up logging
     pargs.logging_frequency = max([pargs.logging_frequency, 1])
-    log_file = os.path.normpath(os.path.join(pargs.output_dir, "logs", pargs.run_tag + ".log"))
+    log_file = os.path.normpath(os.path.join(pargs.output_dir, pargs.run_tag + ".log"))
     logger = mll.mlperf_logger(log_file, "deepcam", "SUBMISSION_ORG_PLACEHOLDER")
     logger.log_start(key = "init_start", sync = True)        
     logger.log_event(key = "cache_clear")
@@ -134,10 +135,14 @@ def main(pargs):
             config = wandb.config
 
     # Logging hyperparameters
+    # concurrency logging
+    logger.log_event(key = "number_of_ranks", value = comm_size)
+    logger.log_event(key = "number_of_nodes", value = (comm_size // comm_local_size))
+    logger.log_event(key = "accelerators_per_node", value = comm_local_size)
+    
     # basic logging
     logger.log_event(key = "checkpoint", value = pargs.checkpoint)
     logger.log_event(key = "global_batch_size", value = (pargs.local_batch_size * comm_size))
-    logger.log_event(key = "num_workers", value = comm_size)
     logger.log_event(key = "batchnorm_group_size", value = pargs.batchnorm_group_size)
     logger.log_event(key = "gradient_accumulation_frequency", value = pargs.gradient_accumulation_frequency)
     # data option logging
@@ -233,7 +238,7 @@ def main(pargs):
         
     # get input shapes for the upcoming model preprocessing
     # input_shape:
-    dshape, label_shape = get_datashapes(pargs, root_dir)
+    dshape, label_shape = get_datashapes()
     input_shape = tuple([dshape[2], dshape[0], dshape[1]])
     
     #distributed model parameters

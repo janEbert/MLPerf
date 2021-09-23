@@ -54,7 +54,7 @@ class GBN(nn.Module):
             self.bn = BatchNorm2d_NHWC(num_features,
                                        fuse_relu=fuse_relu,
                                        bn_group=bngsize,
-                                       max_cta_per_sm=2, cta_launch_margin=12,
+                                       max_cta_per_sm=2, cta_launch_margin=32,#12,
                                        multi_stream=False)
             self.run_handle = self.bn
         else:

@@ -41,12 +41,15 @@ export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
+    hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
+    export OUTPUT_ROOT="${hhai_dir}results/"
+    export OUTPUT_DIR="${OUTPUT_ROOT}"
 
     SBATCH_PARAMS+=(
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "jb_benchmark"
+      --account       "jucha"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 

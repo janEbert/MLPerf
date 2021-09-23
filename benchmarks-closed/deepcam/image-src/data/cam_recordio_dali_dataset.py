@@ -8,13 +8,7 @@ from nvidia.dali.pipeline import Pipeline
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
 from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
-
-
-def peek_shapes_recordio():
-    data_shape = (768, 1152, 16)
-    label_shape = (768, 1152)
-    
-    return data_shape, label_shape
+from .common import get_datashapes
 
 
 class CamDaliRecordIODataloader(object):
@@ -28,7 +22,7 @@ class CamDaliRecordIODataloader(object):
                             device_id=self.device.index,
                             seed = self.seed)
 
-        data_shape, label_shape = peek_shapes_recordio()
+        data_shape, label_shape = get_datashapes()
                                  
         with pipeline:
             # read data

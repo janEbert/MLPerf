@@ -1,5 +1,4 @@
 import os
-import mmap
 from glob import glob
 import itertools
 import numpy as np
@@ -9,33 +8,7 @@ import time
 from queue import LifoQueue as Queue
 import torch.cuda.nvtx as nvtx
 import copy
-
-import torch
-import io_helpers as ioh
-
-
-# small sharding helper function
-def get_shard(files, num_shards, shard_id, cycle_dist=0):
-    num_files = len(files)
-
-    # shard files into bulk and remainder:
-    num_files_per_shard = num_files // num_shards
-    files_bulk = files[:num_files_per_shard * num_shards]
-    files_remainder = files[num_files_per_shard * num_shards:]
-    
-    # get my shard
-    shard_start = shard_id * num_files_per_shard
-    shard_end = shard_start + num_files_per_shard
-    files_shard = files_bulk[shard_start:shard_end].copy()
-    
-    # deal with remainder: round robin with some offset for even distribution
-    cycle_offset = 0
-    for idf, fname in enumerate(files_remainder):
-        if ((idf + cycle_offset) % num_shards == shard_id):
-            files_shard.append(fname)
-        cycle_offset += cycle_dist
-            
-    return files_shard  
+import tarfile
 
 
 def finalize_load_local(fdata_handles):
@@ -57,85 +30,39 @@ def finalize_load_local(fdata_handles):
 
 def finalize_load_global(comm, files, rbytes):
     nvtx.range_push("finalize_load_global")
-    files_all, rbytes = exchange_buffers(comm, files)
-    #we can compute that from the gathered data, no need to sync up
-    #rbytes = comm.allreduce(rbytes)
+    files_all = exchange_buffers(comm, files)
+    rbytes = comm.allreduce(rbytes)
     nvtx.range_pop()
     
     return files_all, rbytes
 
 
-def load_file(filename):
-    with open(filename, "rb") as f:
-        token = f.read()
-
-    return filename, token, len(token)
-
-
-def load_file_direct(filename, filesize=None):
-    if False:
-        # open file
-        fd = os.open(filename, os.O_RDONLY | os.O_DIRECT)
-        
-        # check file size:
-        if filesize is None:
-            stat = os.fstat(fd)
-            readsize = stat.st_size
-        else:
-            readsize = filesize
-        
-        # create mmap
-        mm = mmap.mmap(fd, readsize, offset=0, access=mmap.ACCESS_READ)
-        token = mm.read(readsize)
-        mm.close()
-        
-        # close file
-        os.close(fd)
-    else:
-        blocksize = 4096
-        token = ioh.load_file_direct(filename, blocksize=blocksize, filesize=0 if filesize is None else filesize)
-        
-    return filename, token, len(token)
+def load_file(tar, filename):
+    f = tar.extractfile(filename)
+    fdata = f.read()
+    
+    return filename, fdata, len(fdata)
 
 
-def load_batch_parallel(executor, files, comm_size, comm_rank, filesize=None, direct_io=False):
+def load_batch_parallel(executor, tar, files, comm_size, comm_rank):
     nvtx.range_push("load_batch_parallel")
     # split the data across ranks
     if comm_size > 1:
-        files_load = get_shard(files, comm_size, comm_rank, cycle_dist=0)
+        num_files = len(files)
+        num_files_per_shard = (num_files + comm_size - 1) // comm_size
+        start = num_files_per_shard * comm_rank
+        end = min(start + num_files_per_shard, num_files)
+        files_load = files[start:end]
     else:
         files_load = files
 
     # submit loads:
     queue = Queue()
     for filename in files_load:
-        if direct_io:
-            queue.put(executor.submit(load_file_direct, filename, filesize))
-        else:
-            queue.put(executor.submit(load_file, filename))
+        queue.put(executor.submit(load_file, tar, filename))
     nvtx.range_pop()
     
     return queue
-
-
-def load_batch(files, comm_size, comm_rank):
-    nvtx.range_push("load_batch")
-    # split the data across ranks
-    if comm_size > 1:
-        files_load = get_shard(files, comm_size, comm_rank, cycle_dist=0)
-    else:
-        files_load = files
-
-    # keep track of how many bytes we load
-    rbytes = 0
-    result = []
-    for fname in files_load:
-        _, token, size = load_file(fname)
-        result.append((fname, token))
-        rbytes += size
-    nvtx.range_pop()
-
-    return result, rbytes
 
 
 def finalize_save_local(fdata_handles):
@@ -182,39 +109,77 @@ def save_batch(output_dir, fdata):
 
 
 def exchange_buffers(comm, fdata):
+    nvtx.range_push("exchange_buffers")
     # quick exit if we do not need to communicate
     if comm.Get_size() == 1:
-        rbytes = sum([len(x[1]) for x in fdata])
-        return fdata, rbytes
+        return fdata
 
-    # profile region start
-    nvtx.range_push("exchange_buffers")
+    # determine how many files everyone got:
+    num_files = len(fdata)
+    num_files = comm.allgather(num_files)
 
-    # gather
-    fdata_all = comm.allgather(fdata)
+    #print(f"{comm.Get_rank()} num_files: {num_files}")
     
-    # flatten
-    fdata_result = list(itertools.chain(*fdata_all))
-        
-    # size:
-    rbytes = sum([len(x[1]) for x in fdata_result])
-
-    # stop profiling
+    # gather data
+    if True:
+        # pickle method
+        # gather
+        fdata_all = comm.allgather(fdata)
+        # flatten
+        fdata_result = list(itertools.chain(*fdata_all))
+    else:
+        # pack method
+        # pack 
+        fname_gather = np.stack([np.frombuffer(x.encode('utf-8'), dtype='S1', count=len(x.encode('utf-8')), offset=0) for x,_ in fdata], axis=0)
+        fdata_gather = np.stack([np.frombuffer(y, dtype='S1', count=len(y), offset=0) for _,y in fdata], axis=0)
+        # gather
+        fname_all = comm.allgather(fname_gather)
+        fdata_all = comm.allgather(fdata_gather)
+        # unpack/flatten
+        fname_all = [y.tobytes().decode('utf-8') for y in list(itertools.chain(*[list(x) for x in fname_all]))]
+        fdata_all = [y.tobytes() for y in list(itertools.chain(*[list(x) for x in fdata_all]))]
+        # zip
+        fdata_result = list(zip(fname_all, fdata_all))
     nvtx.range_pop()
 
     # return
-    return fdata_result, rbytes
+    return fdata_result
+
+
+# small sharding helper function
+def get_shard(files, num_shards, shard_id, cycle_dist=0):
+    num_files = len(files)
+    
+    # shard files into bulk and remainder:
+    num_files_per_shard = num_files // num_shards
+    files_bulk = files[:num_files_per_shard * num_shards]
+    files_remainder = files[num_files_per_shard * num_shards:]
+    
+    # get my shard
+    shard_start = shard_id * num_files_per_shard
+    shard_end = shard_start + num_files_per_shard
+    files_shard = files_bulk[shard_start:shard_end].copy()
+    
+    # deal with remainder: round robin with some offset for even distribution
+    cycle_offset = 0
+    for idf, fname in enumerate(files_remainder):
+        if ((idf + cycle_offset) % num_shards == shard_id):
+            files_shard.append(fname)
+        cycle_offset += cycle_dist
+
+    return files_shard
 
 
 # this routine stages data for each instance
 def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
                         lsize, lrank,
-                        files, target_directory,
+                        files,
+                        source_filename,
+                        target_directory,
                         batch_size=-1,
                         stage_num_workers=1,
                         stage_mode="node",
                         full_dataset_per_node=True,
-                        use_direct_io=False,
                         prepare_staging=False):
 
     # comm parameters
@@ -226,7 +191,6 @@ def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
     nrank = instance_node_comm.Get_rank()
 
     num_files = len(files)
-
 
     tag = os.path.basename(files[0]).split("-")[0]
     fname = os.path.join(target_directory, f"files_{tag}.lst")
@@ -271,28 +235,12 @@ def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
         
     # create executor
     executor = cf.ThreadPoolExecutor(max_workers = stage_num_workers)
-
-    # get file sizes:
-    filesize = os.stat(files_shard[0]).st_size
-        
+    tar = tarfile.open(source_filename, 'r:')
     
     # submit first batch
-    #run_times = {"load_batch_parallel": 0.,
-    #             "finalize_load_local": 0.,
-    #             "finalize_load_global": 0.,
-    #             "save_batch_parallel": 0.,
-    #             "finalize_save_local": 0.}
-    #ns_to_s = 1e-9
-    #b_to_gb = 1./float(1024*1024*1024)
-
-    #t_start = time.perf_counter_ns()
-    fdata_handles = load_batch_parallel(executor, files_shard[0:min(num_files_per_shard, batch_size)],
+    fdata_handles = load_batch_parallel(executor, tar, files_shard[0:min(num_files_per_shard, batch_size)],
                                         ssize if stage_mode == "global" else 1,
-                                        srank if stage_mode == "global" else 0,
-                                        filesize,
-                                        direct_io = use_direct_io)
-    #t_stop = time.perf_counter_ns()
-    #run_times["load_batch_parallel"] += (t_stop - t_start) * ns_to_s
+                                        srank if stage_mode == "global" else 0)
 
     # batch loop: go one step further to process the last batch
     save_handles = []
@@ -300,17 +248,13 @@ def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
     total_bytes_write = 0
     for bid in range(1, num_batches+1):
         # wait for data loader
-        #t_start = time.perf_counter_ns()
+        #print(f"{bid}: wait for data")
+        #fdata_save, rbytes = fdata_handle.result()
         fdata_save, rbytes = finalize_load_local(fdata_handles)
-        #t_stop = time.perf_counter_ns()
-        #run_times["finalize_load_local"] += (t_stop - t_start) * ns_to_s
         
         # finalize the load if required:
         if stage_mode == "global":
-            #t_start = time.perf_counter_ns()
             fdata_save, rbytes = finalize_load_global(stage_comm, fdata_save, rbytes)
-            #t_stop = time.perf_counter_ns()
-            #run_times["finalize_load_global"] += (t_stop - t_start) * ns_to_s
             
         # increment total bytes read
         total_bytes_read += rbytes
@@ -319,62 +263,37 @@ def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
         if bid < num_batches:
             batch_start = bid * batch_size
             batch_end = min(batch_start + batch_size, num_files_per_shard)
-            #t_start = time.perf_counter_ns()
-            fdata_handles = load_batch_parallel(executor, files_shard[batch_start:batch_end],
+            fdata_handles = load_batch_parallel(executor, tar, files_shard[batch_start:batch_end],
                                                 ssize if stage_mode == "global" else 1,
-                                                srank if stage_mode == "global" else 0,
-                                                filesize,
-                                                direct_io = use_direct_io)
-            #t_stop = time.perf_counter_ns()
-            #run_times["load_batch_parallel"] += (t_stop - t_start) * ns_to_s
+                                                srank if stage_mode == "global" else 0)
 
         # exchange buffers inside instance if necessary
         if full_dataset_per_node and (stage_mode != "node"):
-            fdata_save, _ = exchange_buffers(instance_node_comm, fdata_save)
+            fdata_save = exchange_buffers(instance_node_comm, fdata_save)
 
         # wait till data is saved
         if save_handles:
-            #t_start = time.perf_counter_ns()
             total_bytes_write += finalize_save_local(save_handles)
-            #t_stop = time.perf_counter_ns()
-            #run_times["finalize_save_local"] += (t_stop - t_start) * ns_to_s
         
         # store locally
         #saved = executor.submit(save_batch, target_directory, fdata_save)
-        #t_start = time.perf_counter_ns()
         save_handles = save_batch_parallel(executor, target_directory, fdata_save)
-        #t_stop = time.perf_counter_ns()
-        #run_times["save_batch_parallel"] += (t_stop - t_start) * ns_to_s
+
+    # close the tarfile, not needed anymore
+    tar.close()
         
     # finalize last batch
     if save_handles:
-        #t_start = time.perf_counter_ns()
         total_bytes_write += finalize_save_local(save_handles)
-        #t_stop = time.perf_counter_ns()
-        #run_times["finalize_save_local"] += (t_stop - t_start) * ns_to_s
 
     # global barrier
     instance_comm.Barrier()
-
-    # print statistics
-    #if True and (irank == 0):
-    #    message = f"Instance {srank} timings:\n"
-    #    for key in run_times:
-    #        message += f"{key} [s]: {run_times[key]:.3f}\n"
-    #    # estimate rw bandwidth:
-    #    read_time = run_times["load_batch_parallel"] + run_times["finalize_load_local"] + run_times["finalize_load_global"]
-    #    message += f"read-bw [GB/s]: {(total_bytes_read * isize * b_to_gb / read_time):.2f}\n"
-    #    write_time = run_times["save_batch_parallel"] + run_times["finalize_save_local"]
-    #    message += f"write-bw [GB/s]: {(total_bytes_write * isize * b_to_gb / write_time):.2f}\n"
-    #    print(message, flush=True)
 
     return total_bytes_read, total_bytes_write
     
 
 def stage_data_helper(global_comm, num_instances, instance_id, instance_comm,
-                      local_size, local_rank, pargs, verify=False, 
-                      full_dataset_per_node=True, use_direct_io=False,
-                      seed=333,
+                      local_size, local_rank, pargs, verify=False, full_dataset_per_node=True, seed=333,
                       prepare_staging = False):
     # - Every instance needs all the data, so we need inum replicas.
     # - Every rank irank within an instance can stage data_size / isize of the total data
@@ -444,7 +363,7 @@ def stage_data_helper(global_comm, num_instances, instance_id, instance_comm,
             print(f"Preparing file lists for {stage_filter}", flush=True)
 
         # get directories
-        stage_source_directory = os.path.join(pargs.data_dir_prefix, os.path.dirname(stage_filter))
+        stage_source_filename = os.path.join(pargs.data_dir_prefix, os.path.dirname(stage_filter)+ '.tar')
         stage_target_directory = os.path.join(stage_dir, os.path.dirname(stage_filter))
 
         # create target directory if not exist:
@@ -453,7 +372,9 @@ def stage_data_helper(global_comm, num_instances, instance_id, instance_comm,
         
         # get file info to everybody
         if grank == 0:
-            allfiles = sorted(glob(os.path.join(stage_source_directory, os.path.basename(stage_filter))))
+            tag = os.path.basename(stage_filter).split("-")[0]
+            with tarfile.open(stage_source_filename, 'r') as tar:
+                allfiles = sorted([x for x in tar.get_names() if x.startswith(tag)])
         else:
             allfiles = None
 
@@ -469,12 +390,13 @@ def stage_data_helper(global_comm, num_instances, instance_id, instance_comm,
         stage_start = time.perf_counter()
         total_read, total_write = stage_instance_data(stage_comm, instance_comm, instance_node_comm,
                                                       lsize, lrank, 
-                                                      allfiles, stage_target_directory,
+                                                      allfiles,
+                                                      stage_source_filename,
+                                                      stage_target_directory,
                                                       pargs.stage_batch_size,
                                                       pargs.stage_num_workers,
                                                       pargs.stage_mode,
                                                       full_dataset_per_node,
-                                                      use_direct_io,
                                                       prepare_staging)
         stage_stop = time.perf_counter()
 

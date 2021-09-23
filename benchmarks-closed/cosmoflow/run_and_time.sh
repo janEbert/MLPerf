@@ -218,7 +218,7 @@ fi
 if [[ ${PROFILE} -ge 1 ]]; then
     TMPDIR=/results ${DISTRIBUTED} ${BIND} ${PROFILE_COMMAND} python train.py "${PARAMS[@]}"; ret_code=$?
 else
-    ${LOGGER:-} ${DISTRIBUTED} ${BIND} python /workspace/cosmoflow/train.py "${PARAMS[@]}"; ret_code=$?
+    ${LOGGER:-} ${DISTRIBUTED} ${BIND} python "${COSMOFLOW_DIR}"train.py "${PARAMS[@]}"; ret_code=$?
 fi
 
 if [[ ${PROFILE} -ge 1 ]]; then

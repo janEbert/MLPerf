@@ -307,16 +307,16 @@ class CamDaliESDiskDataloader(object):
         if file_list_data is not None and os.path.isfile(os.path.join(root_dir, file_list_data)):
             with open(os.path.join(root_dir, file_list_data), "r") as f:
                 token = f.readlines()
-            self.data_files = [os.path.join(root_dir, x.strip()) for x in token]
+            self.data_files = sorted([os.path.join(root_dir, x.strip()) for x in token])
         else:
-            self.data_files = glob.glob(os.path.join(self.root_dir, self.prefix_data))
+            self.data_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_data)))
         # label
         if file_list_label is not None and os.path.isfile(os.path.join(root_dir, file_list_label)):
             with open(os.path.join(root_dir, file_list_label), "r") as f:
                 token = f.readlines()
-            self.label_files = [os.path.join(root_dir, x.strip()) for x in token]
+            self.label_files = sorted([os.path.join(root_dir, x.strip()) for x in token])
         else:
-            self.label_files = glob.glob(os.path.join(self.root_dir, self.prefix_label))
+            self.label_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_label)))
 
         # get shapes
         self.data_shape = np.load(self.data_files[0]).shape

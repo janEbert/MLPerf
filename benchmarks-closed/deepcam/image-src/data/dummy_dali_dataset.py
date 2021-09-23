@@ -6,20 +6,14 @@ from nvidia.dali.pipeline import Pipeline
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
 from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
-
-
-def peek_shapes_dummy():
-    data_shape=(768, 1152, 16)
-    label_shape=(768, 1152)
-    
-    return data_shape, label_shape
+from .common import get_datashapes
 
 
 class DummyDaliDataloader(object):
 
     def get_pipeline(self):
-        self.data_size = 1152*768*16*4
-        self.label_size = 1152*768*8
+        self.data_size = np.prod(self.data_shape) * 4
+        self.label_size = np.prod(self.label_shape) * 8
         
         pipeline = Pipeline(batch_size=self.batchsize, 
                             num_threads=self.num_threads, 
@@ -27,25 +21,15 @@ class DummyDaliDataloader(object):
                             seed = self.seed)
                                  
         with pipeline:
-            #data = fn.random.normal(device="gpu",
-            #                        shape=[768, 1152, 16],
-            #                        bytes_per_sample_hint = self.data_size,
-            #                        dtype=types.DALIDataType.FLOAT)
             data = fn.constant(device="gpu",
                                fdata=1.,
-                               shape=[768, 1152, 16],
+                               shape=self.data_shape,
                                bytes_per_sample_hint = self.data_size,
                                dtype=types.DALIDataType.FLOAT)
 
-            #label = fn.random.uniform(device="gpu",
-            #                          range=[0,2],
-            #                          shape=[768, 1152],
-            #                          bytes_per_sample_hint = self.label_size,
-            #                          dtype=types.DALIDataType.INT64)
-
             label = fn.constant(device="gpu",
                                 idata=0,
-                                shape=[768, 1152],
+                                shape=self.label_shape,
                                 bytes_per_sample_hint = self.label_size,
                                 dtype=types.DALIDataType.INT64)
                             
@@ -84,6 +68,7 @@ class DummyDaliDataloader(object):
         self.seed = seed
         self.epoch_size = 0
         self.oversampling_factor = oversampling_factor
+        self.data_shape, self.label_shape = get_datashapes()
 
         # set up pipeline
         self.pipeline = self.get_pipeline()
