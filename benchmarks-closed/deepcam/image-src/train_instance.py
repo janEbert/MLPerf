@@ -58,6 +58,7 @@ from architecture import deeplab_xception
 from data import stage_data as sd
 #from data import stage_data_v2 as sd
 from data import stage_archived_data as sda 
+from data import stage_hdf5_data as sdh5
 
 # DDP
 import torch.distributed as dist
@@ -102,7 +103,10 @@ def main(pargs):
         full_dataset_per_node = pargs.stage_full_data_per_node
         num_instances = mpi_comm.Get_size() // mpi_instance_comm.Get_size()
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
-        stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
+        if pargs.data_format.endswith("hdf5"):
+            stage_data_handle= sdh5.stage_data_helper
+        else:
+            stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
         global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
                                                                       comm_local_size, comm_local_rank,
                                                                       pargs, verify = pargs.stage_verify,

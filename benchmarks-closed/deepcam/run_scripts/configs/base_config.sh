@@ -15,7 +15,7 @@ export SEED=999
 
 # data parameters
 export SHUFFLE_MODE="global"
-export DATA_FORMAT="dali-es"
+export DATA_FORMAT="dali-es/hdf5"
 # options for data format: dali-es, dali-numpy, dali-dummy, dali-recordio, dali-es-disk
 export PRECISION_MODE="amp"
 export LOCAL_VALIDATION_BATCH_SIZE=8

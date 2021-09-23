@@ -49,10 +49,10 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
     else:
         oversampling_factor=1
         kwargs={}
-        if pargs.data_format == "dali-numpy":
+        if pargs.data_format.startswith("dali-numpy"):
             dl_handle = CamDaliNumpyDataloader
-            data_filter = 'data-*.npy'
-            label_filter = 'label-*.npy'
+            data_filter = '*data-*.npy'
+            label_filter = '*label-*.npy'
         elif pargs.data_format == "dali-dummy":
             dl_handle = DummyDaliDataloader
             data_filter = None
@@ -61,10 +61,10 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
             dl_handle = CamDaliRecordIODataloader
             data_filter = 'data-*.rec'
             label_filter = 'label-*.rec'
-        elif pargs.data_format == 'dali-es':
+        elif pargs.data_format.startswith('dali-es'):
             dl_handle = CamDaliESDataloader
-            data_filter = 'data-*.npy'
-            label_filter = 'label-*.npy'
+            data_filter = '*data-*.npy'
+            label_filter = '*label-*.npy'
             oversampling_factor = pargs.data_oversampling_factor
         elif pargs.data_format == 'dali-es-disk':
             dl_handle = CamDaliESDiskDataloader

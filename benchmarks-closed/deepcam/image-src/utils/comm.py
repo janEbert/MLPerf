@@ -117,7 +117,7 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     # for each instance_rank == 0 node:
     address = None
     if method == "nccl-slurm": 
-        address = os.getenv("SLURM_TOPOLOGY_ADDR").split(".")[-1]
+        address = os.getenv("HOSTNAME")
     else:
         raise NotImplementedError(f"Error, wireup method {method} not implemented.")
 
