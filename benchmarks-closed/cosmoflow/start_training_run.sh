@@ -44,7 +44,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
     # JB
     export OUTPUT_DIR="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/logs/"
     export OUTPUT_DIR="/p/project/jb_benchmark/MLPerf-1.0/benchmarks-closed/cosmoflow/results/"
-    export OUTPUT_ROOT="${OUTPUT_DIR}"
+    export OUTPUT_ROOT="${OUTPUT_DIR}cosmoflow/"
 
     SBATCH_PARAMS+=(
       --partition     "booster"
@@ -59,7 +59,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
   then
 #    export TRAIN_DATA_PREFIX="/hkfs/home/datasets/deepcam/"
     export OUTPUT_DIR="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/benchmarks-closed/deepcam/results/"
-    export OUTPUT_ROOT="${OUTPUT_DIR}"
+    export OUTPUT_ROOT="${OUTPUT_DIR}/cosmoflow/"
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"

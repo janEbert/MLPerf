@@ -18,7 +18,7 @@ export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v
 hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
 base_dir="${hhai_dir}benchmarks-closed/cosmoflow/"
 
-export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results"
+export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
 
 export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
 # director for image: /workspace/cosmoflow/

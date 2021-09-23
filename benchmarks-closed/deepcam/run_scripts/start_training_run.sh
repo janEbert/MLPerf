@@ -42,7 +42,7 @@ export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
     hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
-    export OUTPUT_ROOT="${hhai_dir}results/"
+    export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
 
     SBATCH_PARAMS+=(
@@ -56,7 +56,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
 elif [ "$TRAINING_SYSTEM" == "horeka" ]
   then
     hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
-    export OUTPUT_ROOT="${hhai_dir}results/"
+    export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
 
     SBATCH_PARAMS+=(

@@ -23,7 +23,7 @@ export DEEPCAM_DIR="${base_dir}image-src/"
 SCRIPT_DIR="${base_dir}run_scripts/"
 SINGULARITY_FILE="${base_dir}docker/nvidia-optimized-image-2.sif"
 
-export OUTPUT_ROOT="${hhai_dir}results/"
+export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
 export OUTPUT_DIR="${OUTPUT_ROOT}"
 
 if [ -n "${CONFIG_FILE}" ]
