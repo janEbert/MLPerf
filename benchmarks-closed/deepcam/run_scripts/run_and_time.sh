@@ -7,9 +7,11 @@
 # start timing
 start=$(date +%s)
 start_fmt=$(date +%Y-%m-%d\ %r)
+#if [ "$WORLD_RANK" == 0 ]; then
 echo "STARTING TIMING RUN AT $start_fmt"
 pwd
-echo $CUDA_AVAILABLE_DEVICES
+echo "CUDA_VISIBLE_DEVICES (start): ${CUDA_VISIBLE_DEVICES}"
+#fi
 # assemble launch command
 export RUN_TAG=${RUN_TAG:-deepcam_ngpu$(( ${SLURM_NNODES} * ${DGXNGPU} ))_${SLURM_JOBID}}
 export OUTPUT_DIR=${OUTPUT_ROOT:-/tmp}/${RUN_TAG}
@@ -53,16 +55,34 @@ PARAMS=(
 )
 
 # profile command:
-if [ ! -z ${OMPI_COMM_WORLD_RANK} ]; then
+if [ -n "${SLURM_PROCID}" ]; then
+    WORLD_RANK=${SLURM_PROCID}
+elif [ -n "${OMPI_COMM_WORLD_RANK}" ]; then
     WORLD_RANK=${OMPI_COMM_WORLD_RANK}
-elif [ ! -z ${PMIX_RANK} ]; then
+elif [ -n "${PMIX_RANK}" ]; then
     WORLD_RANK=${PMIX_RANK}
-elif [ ! -z ${PMI_RANK} ]; then
-    WORLD_RANK=${PMIXRANK}
+elif [ -n "${PMI_RANK}" ]; then
+    WORLD_RANK=${PMI_RANK}
 fi
+
+## set cuda devices
+#if [ -z "${CUDA_AVAILABLE_DEVICES}" ]; then
+##  rank = int(os.getenv("PMI_RANK"))
+##  world_size = int(os.getenv("SLURM_NTASKS"))
+#export CUDA_VISIBLE_DEVICES=$(( WORLD_RANK % 4 ))
+###  $(( WORLD_RANK % 4 ))
+#echo "CUDA_VISIBLE_DEVICES: "${CUDA_VISIBLE_DEVICES}
+#fi
+
+#if [ "$WORLD_RANK" == 0 ]; then
+#  pip list
+#fi
+
 PROFILE_BASE_CMD="nsys profile --mpi-impl=openmpi --trace=cuda,cublas,nvtx,mpi -f true -o ${OUTPUT_DIR}/profile_rank${WORLD_RANK}"
 if [[ ${ENABLE_PROFILING} == 1 ]]; then
-    echo "Profiling enabled"
+    if [ "$WORLD_RANK" == 0 ]; then
+        echo "Profiling enabled"
+    fi
     PROFILE_CMD=${PROFILE_BASE_CMD}
 else
     PROFILE_CMD=""
@@ -73,7 +93,9 @@ fi
 ################################################################################
 
 if [ -n "${SLURM_CPU_BIND_USER_SET}" ]; then
-    echo "Using bindings from SLURM: ${SLURM_CPU_BIND_TYPE}"
+    if [ "$WORLD_RANK" == 0 ]; then
+        echo "Using bindings from SLURM: ${SLURM_CPU_BIND_TYPE}"
+    fi
     BIND_CMD=""
 else
     echo "Using NUMA binding"

@@ -188,11 +188,12 @@ def init(method, batchnorm_group_size=1):
         rank = int(os.getenv("PMI_RANK"))
         world_size = int(os.getenv("SLURM_NTASKS"))
         address = os.getenv("SLURM_LAUNCH_NODE_IPADDR")
-        port = "29500"
+        port = "29502"
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
                                                 
         #init DDP
+        # print(f"init proc group {address}, {port}")
         dist.init_process_group(backend = "nccl",
                                 rank = rank,
                                 world_size = world_size)
