@@ -66,6 +66,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
       --exclude       "hkn[0518,0519,0533,0614,0811]"
       --cpu-freq="high"
       --gpu-freq="high"
+      --constraint="BEEOND"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else
