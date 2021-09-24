@@ -24,7 +24,7 @@ while test $# -gt 0; do
   esac
 done
 
-if [ -z ${TIMELIMIT} ]; then TIMELIMIT="00:10:00"; fi
+if [ -z "${TIMELIMIT}" ]; then TIMELIMIT="00:10:00"; fi
 
 echo "Job time limit: "${TIMELIMIT}
 
@@ -64,6 +64,8 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
       --output        "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.err"
       --exclude       "hkn[0518,0519,0533,0614,0811]"
+      --cpu-freq="high"
+      --gpu-freq="high"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else

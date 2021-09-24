@@ -8,8 +8,8 @@ ml devel/cuda/11.4
 # pmi2 cray_shasta
 SRUN_PARAMS=(
   --mpi="pmi2"
-  --label
-  #--cpu-bind="ldoms"
+#  --label
+  --cpu-bind="ldoms"
 )
 
 export SLURM_CPU_BIND_USER_SET="ldoms"
@@ -38,7 +38,7 @@ echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}" ${SINGULARITY_FILE} \
+  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}",${OUTPUT_ROOT} ${SINGULARITY_FILE} \
     bash -c "\
       source ${CONFIG_FILE}; \
       export SLURM_CPU_BIND_USER_SET=\"none\"; \

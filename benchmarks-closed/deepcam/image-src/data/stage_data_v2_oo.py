@@ -17,6 +17,25 @@ import torch
 import io_helpers as ioh
 
 
+def numpy_integrity_check(src_dir, dst_dir, files):
+    checklist = []
+    issue_found = False
+    for fname in files:
+        src_arr = np.load(os.path.join(src_dir, fname))
+        dst_arr = np.load(os.path.join(dst_dir, fname))
+        compare = np.allclose(src_arr, dst_arr,
+                              rtol=1e-07,
+                              atol=1e-08)
+        src_nan = np.any(np.isnan(src_arr))
+        dst_nan = np.any(np.isnan(dst_arr))
+
+        issue_found = issue_found or not compare or src_nan or dst_nan
+
+        checklist.append({"file": fname, "equal": compare, "src_nan": src_nan, "dst_nan": dst_nan})
+        
+    return checklist, issue_found
+
+
 def get_shard(files, num_shards, shard_id, cycle_dist=0):
     num_files = len(files)
     
@@ -62,17 +81,24 @@ def allgather_safe(comm, fdata):
     # gather stuff
     if True:
         # prepare buffers:
+        sendbuff = np.frombuffer(memoryview(fdata), dtype=np_dtype, count=num_bytes)
         recvbuff = np.empty((comm_size * chunksize), dtype=np_dtype)
-        resultbuffs = [np.empty(num_bytes, dtype=np_dtype) for _ in range(comm_size)]
+        resultbuffs = np.split(np.empty(num_bytes * comm_size, dtype=np_dtype), comm_size)
         
         # do subsequent gathers
         for i in range(0, num_chunks):
+            # create buffer views
             start = i * chunksize
             end = min(start + chunksize, num_bytes)
             eff_bytes = end - start
-            sendbuff = np.frombuffer(memoryview(fdata[start:end]), dtype=np_dtype, count=eff_bytes)
-            comm.Allgather([sendbuff, datatype], [recvbuff, datatype])
-            recvbuff_split = np.split(recvbuff[0:eff_bytes*comm_size], comm_size)
+            sendbuffv = sendbuff[start:end]
+            recvbuffv = recvbuff[0:eff_bytes*comm_size] 
+
+            # perform allgather on views
+            comm.Allgather([sendbuffv, datatype], [recvbuffv, datatype])
+
+            # split result buffer for easier processing
+            recvbuff_split = np.split(recvbuffv, comm_size)
             for j in range(comm_size):
                 resultbuffs[j][start:end] = recvbuff_split[j][...]
         results = [x.tobytes() for x in resultbuffs]
@@ -119,8 +145,8 @@ def save_file(ofname, fdata):
     return len(fdata)
     
 
-def save_file_direct(ofname, fdata, blocksize=512):
-    wbytes = ioh.save_file_direct(ofname, fdata, blocksize)
+def save_file_direct(ofname, fdata, blocksize=512, sync=True):
+    wbytes = ioh.save_file_direct(ofname, fdata, blocksize, sync)
     return wbytes                
 
 
@@ -141,7 +167,7 @@ class FileStager(object):
         queue = Queue()
         for filename in files_load:
             fname = os.path.join(source_directory, filename)
-            if self.use_direct_io:
+            if self.use_direct_read:
                 queue.put(self.executor.submit(load_file_direct, fname, filesize, blocksize))
             else:
                 queue.put(self.executor.submit(load_file, fname))
@@ -192,14 +218,36 @@ class FileStager(object):
             # communicate if necessary and store
             if comm is not None:
                 fname_all = comm.allgather(fname)
+
+                # we need to do that to check integrity
+                if self.extended_verify:
+                    from hashlib import blake2b
+                    checksum = blake2b(fdata).hexdigest()
+                    checksums_io = comm.allgather(checksum) 
+
+                # issue allgather
                 fdata_all = allgather_safe(comm, fdata)
+
+                # compare checksums
+                if self.extended_verify:
+                    checksums_ag = [blake2b(x).hexdigest() for x in fdata_all]
+                    if checksums_io != checksums_ag:
+                        print(checksums_io, checksums_ag)
+                    assert(checksums_io == checksums_ag)
+                
                 for fname, fdata in zip(fname_all, fdata_all):
                     ofn = os.path.join(target_directory, os.path.basename(fname))
-                    save_queue.put(self.executor.submit(save_file_direct, ofn, copy.copy(fdata)))
+                    if self.use_direct_write:
+                        save_queue.put(self.executor.submit(save_file_direct, ofn, copy.copy(fdata)))
+                    else:
+                        save_queue.put(self.executor.submit(save_file, ofn, copy.copy(fdata)))
                     rbytes += len(fdata)
             else:
                 ofn = os.path.join(target_directory, os.path.basename(fname))
-                save_queue.put(self.executor.submit(save_file_direct, ofn, copy.copy(fdata)))
+                if self.use_direct_write:
+                    save_queue.put(self.executor.submit(save_file_direct, ofn, copy.copy(fdata)))
+                else:
+                    save_queue.put(self.executor.submit(save_file, ofn, copy.copy(fdata)))
                 rbytes += len(fdata)
                     
         nvtx.range_pop()
@@ -267,10 +315,15 @@ class FileStager(object):
         self.batch_size = batch_size
         self.num_workers = num_workers                        
         self.stage_mode = stage_mode
-        self.verify = verify
         self.full_dataset_per_node = full_dataset_per_node
-        self.use_direct_io = use_direct_io
+        self.use_direct_read = use_direct_io
+        self.use_direct_write = use_direct_io
         self.seed = seed
+
+        # debug
+        self.verify = verify
+        # warning, this is slow!
+        self.extended_verify = False
 
         # extract comm info
         self.gsize = self.global_comm.Get_size()
@@ -499,7 +552,7 @@ class FileStager(object):
                           Elapsed time {stage_duration:.2f}s.
                           Read {total_read:.2f} GB (bandwidth: {total_read/stage_duration:.2f} GB/s).
                           Write {total_write:.2f} GB (bandwidth: {total_write/stage_duration:.2f} GB/s).
-                       """)
+                       """, flush=True)
 
             # verify staging results if requested
             if self.verify:
@@ -531,6 +584,17 @@ class FileStager(object):
 
                 assert(staged_num_files == global_num_files)
                 assert(checkfiles1 == checkfiles2)
+
+                if self.extended_verify:
+                    if self.lrank == 0:
+                        checks, issue = numpy_integrity_check(self.file_stats[stage_filter]["source_directory"],
+                                                              self.file_stats[stage_filter]["target_directory"],
+                                                              [os.path.basename(x) for x in staged_files])
+                        if issue:
+                            print(f"Instance {self.instance_id}, local rank {self.irank}: Verification Error. Results:", checks, flush=True)
+                        else:
+                            print(f"Instance {self.instance_id}, local rank {self.irank}: Verification OK", flush=True)
+                    self.instance_comm.Barrier()
                         
                 if self.irank == 0:
                     print(f'Staged data for {stage_filter}: {staged_num_files}, expected: {global_num_files}', flush=True)

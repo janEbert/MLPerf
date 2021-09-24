@@ -20,6 +20,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
+import socket
 import torch
 import torch.distributed as dist
 
@@ -115,35 +116,49 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     
     # for a successful scaffolding, we need to retrieve the IP addresses
     # for each instance_rank == 0 node:
-    address = None
-    if method == "nccl-slurm": 
-        address = os.getenv("SLURM_TOPOLOGY_ADDR").split(".")[-1]
-    else:
-        raise NotImplementedError(f"Error, wireup method {method} not implemented.")
+    my_address = socket.gethostname()
+    #if method == "nccl-slurm": 
+    #    address = os.getenv("SLURM_TOPOLOGY_ADDR").split(".")[-1]
+    #else:
+    #    raise NotImplementedError(f"Error, wireup method {method} not implemented.")
 
-    #bacst that into to everybody
-    address = mpi_instance_comm.bcast(address, root=0)
+    #allgather the hostname from all nodes in the instance
+    addresses = mpi_instance_comm.allgather(my_address)
+    addresses = sorted(list(set(addresses)))
+    
+    if verbose and instance_rank == 0:
+        print(f"Hosts in instance {instance_id}: {addresses}", flush=True)
+
+    # set the master address:
+    address = addresses[0]
 
     # save env vars
     port = "29500"
     os.environ["MASTER_ADDR"] = address
     os.environ["MASTER_PORT"] = port
 
-    if verbose:
-        mpi_comm.barrier()
-        print(f"Global Rank: {comm_rank}, Instance Rank: {instance_rank}, Instance ID: {instance_id}, Master Address: {address}", flush=True)
-        mpi_comm.barrier()
+    #if verbose:
+    #    mpi_comm.barrier()
+    #    print(f"Global Rank: {comm_rank}, Instance Rank: {instance_rank}, Instance ID: {instance_id}, Master Address: {address}", flush=True)
+    #    mpi_comm.barrier()
     
     # do the dist init (if we have non trivial instances)
     if instance_size > 1:
+        if verbose and instance_rank == 0:
+            print(f"Starting NCCL wireup for instance {instance_id}", flush=True)
+        # dangerous but necessary
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
+        # initialize group
         dist.init_process_group(backend = "nccl",
                                 rank = instance_rank,
                                 world_size = instance_size)
 
-    # make sure to call a barrier here in order for sharp to use the default comm:
-    if dist.is_initialized():
+        # make sure to call a barrier here in order for sharp to use the default comm:
         dist.barrier(device_ids = [get_local_rank()])
+        # the nccl wireup call could be non blocking, so we wait for the first barrier
+        # to complete before printing this message
+        if verbose and instance_rank == 0:
+            print(f"Completed NCCL wireup for instance {instance_id}", flush=True)
 
     # get the local process group for batchnorm
     batchnorm_group = get_local_group(batchnorm_group_size)
@@ -188,12 +203,11 @@ def init(method, batchnorm_group_size=1):
         rank = int(os.getenv("PMI_RANK"))
         world_size = int(os.getenv("SLURM_NTASKS"))
         address = os.getenv("SLURM_LAUNCH_NODE_IPADDR")
-        port = "29502"
+        port = "29500"
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
                                                 
         #init DDP
-        # print(f"init proc group {address}, {port}")
         dist.init_process_group(backend = "nccl",
                                 rank = rank,
                                 world_size = world_size)

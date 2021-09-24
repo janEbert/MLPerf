@@ -14,7 +14,7 @@ export BATCHNORM_GROUP_SIZE=2
 
 # data parameters
 export SHUFFLE_MODE="global"
-export DATA_FORMAT="dali-numpy"
+export DATA_FORMAT="dali-dummy"
 export PRECISION_MODE="amp"
 export LOCAL_VALIDATION_BATCH_SIZE=8
 

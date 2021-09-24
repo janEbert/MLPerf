@@ -7,7 +7,7 @@ import numpy as np
 import argparse as ap
 import concurrent.futures as cf
 import time
-from queue import LifoQueue as Queue
+from queue import Queue as Queue
 import torch.cuda.nvtx as nvtx
 import copy
 
@@ -124,22 +124,29 @@ def allgather_safe(comm, fdata):
     np_dtype = dtlib.to_numpy_dtype(datatype)
     
     # gather stuff
-    if False:
+    if True:
         # prepare buffers:
-        recvbuffs = np.empty((comm_size * chunksize), dtype=np_dtype)
-        resultbuffs = [np.empty(num_bytes, dtype=np_dtype) for _ in range(comm_size)]
-        
+        sendbuff = np.frombuffer(memoryview(fdata), dtype=np_dtype, count=num_bytes)
+        recvbuff = np.empty((comm_size * chunksize), dtype=np_dtype)
+        resultbuffs = np.split(np.empty(num_bytes * comm_size, dtype=np_dtype), comm_size)
+
         # do subsequent gathers
         for i in range(0, num_chunks):
+            # create buffer views
             start = i * chunksize
             end = min(start + chunksize, num_bytes)
             eff_bytes = end - start
-            sendbuff = np.frombuffer(memoryview(fdata[start:end]), dtype=np_dtype, count=eff_bytes)
-            comm.Allgather([sendbuff, datatype], [recvbuff, datatype])
-            recvbuff_split = np.split(recvbuff[0:eff_bytes*comm_size], comm_size)
+            sendbuffv = sendbuff[start:end]
+            recvbuffv = recvbuff[0:eff_bytes*comm_size]
+            
+            # perform allgather on views
+            comm.Allgather([sendbuffv, datatype], [recvbuffv, datatype])
+            
+            # split result buffer for easier processing
+            recvbuff_split = np.split(recvbuffv, comm_size)
             for j in range(comm_size):
                 resultbuffs[j][start:end] = recvbuff_split[j][...]
-        results = [x.tobytes() for x in resultbuffs]
+        results = [x.tobytes() for x in resultbuffs] 
     else:
         recvbuff = np.empty((total_bytes), dtype=np_dtype)
         for i in range(0, num_chunks):

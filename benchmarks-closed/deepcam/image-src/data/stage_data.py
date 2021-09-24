@@ -6,7 +6,7 @@ import numpy as np
 import argparse as ap
 import concurrent.futures as cf
 import time
-from queue import LifoQueue as Queue
+from queue import Queue as Queue
 import torch.cuda.nvtx as nvtx
 import copy
 

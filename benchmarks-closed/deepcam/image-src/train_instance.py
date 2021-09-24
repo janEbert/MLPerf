@@ -88,8 +88,10 @@ def main(pargs):
     
     # set up logging
     pargs.logging_frequency = max([pargs.logging_frequency, 1])
-    log_file = os.path.normpath(os.path.join(pargs.output_dir, pargs.run_tag + f"_{instance_id}.log"))
-    logger = mll.mlperf_logger(log_file, "deepcam", "SUBMISSION_ORG_PLACEHOLDER")
+    log_file = os.path.normpath(os.path.join(pargs.output_dir, pargs.run_tag + f"_{instance_id+1}_{pargs.experiment_id}.log"))
+    logger = mll.mlperf_logger(log_file, "deepcam",
+                               "SUBMISSION_ORG_PLACEHOLDER",
+                               mpi_comm.Get_size() // comm_local_size)
     logger.log_start(key = "init_start", sync = True)        
     logger.log_event(key = "cache_clear")
     
