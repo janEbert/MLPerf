@@ -7,11 +7,11 @@ ml purge
 
 SRUN_PARAMS=(
   --mpi            pspmix
-#  --cpu-bind       none
+  --cpu-bind       none
   #--label
 )
 
-export SLURM_CPU_BIND_USER_SET="ldoms"
+export SLURM_CPU_BIND_USER_SET="none"
 
 export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
 
