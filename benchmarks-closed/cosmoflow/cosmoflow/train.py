@@ -3,6 +3,7 @@ import logging
 import time
 
 import data
+import h5_data
 import model
 import utils
 import random
@@ -151,7 +152,10 @@ def main(args: argparse.Namespace):
     utils.logger.event(key="dropout", 
                        value=args.dropout)
 
-    iteration_builder, train_steps, val_steps = data.get_rec_iterators(args, dist_desc)
+    if args.use_h5:
+        iteration_builder, train_steps, val_steps = h5_data.get_rec_iterators(args, dist_desc)
+    else:
+        iteration_builder, train_steps, val_steps = data.get_rec_iterators(args, dist_desc)
     lr_scheduler = LRScheduler(initial_lr=args.initial_lr, 
                                peak_lr=args.base_lr,
                                warmup_epochs=args.warmup_epochs,
