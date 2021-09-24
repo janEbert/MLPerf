@@ -4,13 +4,13 @@
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "Launcher for training + timing for DeepCam on either HoreKa or Juwels Booster"
+      echo "Launcher for training + timing for Cosmoflow on Juwels Booster"
       echo " "
       echo "[options] application [arguments]"
       echo " "
       echo "options:"
       echo "-h, --help                show brief help"
-      echo "-s, --system              the HPC machine to use [horeka, booster]"
+      echo "-s, --system              the HPC machine to use [booster]"
       echo "-N, --nodes               number of nodes to compute on"
       echo "-t, --time                compute time limit"
       echo "-c, --config              config file to use"
@@ -60,6 +60,8 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
 #    export TRAIN_DATA_PREFIX="/hkfs/home/datasets/deepcam/"
     export OUTPUT_DIR="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/benchmarks-closed/deepcam/results/"
     export OUTPUT_ROOT="${OUTPUT_DIR}/cosmoflow/"
+    echo 'not implemented'
+    exit 2
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"
