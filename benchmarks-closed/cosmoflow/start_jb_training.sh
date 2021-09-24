@@ -23,6 +23,7 @@ export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/c
 export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
 # director for image: /workspace/cosmoflow/
 #export CUDA_AVAILABLE_DEVICES="0,1,2,3"
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
 
 SCRIPT_DIR="${base_dir}"
 #"/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
