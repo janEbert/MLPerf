@@ -13,7 +13,16 @@ SRUN_PARAMS=(
 
 export SLURM_CPU_BIND_USER_SET="none"
 
-export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
+# Whether to use HDF5 data.
+export USE_H5=1
+
+if [[ ${USE_H5} -ge 1 ]]; then
+    # We need to use prestaging with HDF5 data.
+    export APPLY_PRESTAGE=1
+    export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoflow"
+else
+    export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
+fi
 
 hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
 base_dir="${hhai_dir}benchmarks-closed/cosmoflow/"
