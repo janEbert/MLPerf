@@ -125,8 +125,12 @@ def main(args: argparse.Namespace):
                        value="cosmoflow")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_ORG, value="NVIDIA")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_DIVISION, value="closed")
-    utils.logger.event(key=utils.logger.constants.SUBMISSION_STATUS, value="onperm")
+    utils.logger.event(key=utils.logger.constants.SUBMISSION_STATUS, value="onprem")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_PLATFORM, value="DGXA100")
+
+    utils.logger.event(key="number_of_nodes", 
+                       value=(dist_desc.size // dist_desc.local_size) * args.instances)
+    utils.logger.event(key="accelerators_per_node", value=dist_desc.local_size)
 
     cuda_profile_opt = utils.parse_cuda_profile_argument(args.cuda_profiler_range) \
         if args.cuda_profiler_range != "" else None
@@ -147,8 +151,7 @@ def main(args: argparse.Namespace):
     utils.logger.event(key="dropout", 
                        value=args.dropout)
 
-    train_iter, train_steps, val_iter, val_steps = data.get_rec_iterators(args, dist_desc)
-
+    iteration_builder, train_steps, val_steps = data.get_rec_iterators(args, dist_desc)
     lr_scheduler = LRScheduler(initial_lr=args.initial_lr, 
                                peak_lr=args.base_lr,
                                warmup_epochs=args.warmup_epochs,
@@ -161,6 +164,8 @@ def main(args: argparse.Namespace):
                                  wd=args.weight_decay,
                                  multi_precision=args.use_fp16,
                                  rescale_grad=1.0 if not args.use_fp16 else args.static_loss_scale)
+    utils.logger.event(key=utils.logger.constants.OPT_NAME,
+                       value=utils.logger.constants.SGD)
 
     if dist_desc.size == 1:
         trainer = mx.gluon.Trainer(model.collect_params(), optimizer,
@@ -172,7 +177,8 @@ def main(args: argparse.Namespace):
 
         gradient_predivide_factor = args.grad_prediv_factor
         trainer = hvd.DistributedTrainer(network_parameters, optimizer,
-                                         gradient_predivide_factor=gradient_predivide_factor)
+                                         gradient_predivide_factor=gradient_predivide_factor,
+                                         num_groups=1)
 
     if args.use_amp:
         amp.init_trainer(trainer)
@@ -183,6 +189,8 @@ def main(args: argparse.Namespace):
     dist_desc.comm.Barrier()
     utils.logger.stop(key=utils.logger.constants.INIT_STOP)
     utils.logger.start(key=utils.logger.constants.RUN_START)
+
+    train_iter, val_iter = iteration_builder()
 
     
     for epoch in range(args.num_epochs):

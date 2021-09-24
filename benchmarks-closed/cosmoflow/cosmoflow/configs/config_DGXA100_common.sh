@@ -7,14 +7,18 @@ export DGXNGPU=8
 export DGXNSOCKET=2
 export DGXSOCKETCORES=64
 export DGXHT=2  # HT is on is 2, HT off is 1
-export HOROVOD_NUM_NCCL_STREAMS=2
+export HOROVOD_NUM_NCCL_STREAMS=1
 export MXNET_HOROVOD_NUM_GROUPS=1
 export HOROVOD_CYCLE_TIME=0.1
 export MXNET_OPTIMIZER_AGGREGATION_SIZE=54
 export MXNET_ENABLE_CUDA_GRAPHS=1
+
+export OMPI_MCA_coll_hcoll_enable=0 
+export HCOLL_ENABLE_MCAST=0  
 
 
 # Enable SHARP
 #export NCCL_COLLNET_ENABLE=1
 
 export DTYPE="amp"
+export STAGING_DIR="/tmp"

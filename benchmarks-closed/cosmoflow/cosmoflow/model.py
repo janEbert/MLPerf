@@ -141,7 +141,7 @@ class CosmoflowWithLoss(nn.HybridBlock):
             
 
         #self.hybridize(static_alloc=True, static_shape=True)
-        #self.model.hybridize(static_alloc=True, static_shape=True)
+        self.model.hybridize(static_alloc=True, static_shape=True)
 
         # warmup
         _ = self(*random_batch)
