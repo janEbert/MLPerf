@@ -31,13 +31,9 @@ SINGULARITY_FILE="${base_dir}docker/deepcam_optimized-21.09.sif"
 
 echo "${SINGULARITY_FILE}"
 
-export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
+export OUTPUT_ROOT="${HHAI_DIR}results/deepcam/"
 export OUTPUT_DIR="${OUTPUT_ROOT}"
 
-if [ -n "${CONFIG_FILE}" ]
-  then
-    export CONFIG_FILE="${SCRIPT_DIR}configs/best_configs/config_DGXA100_512GPU_BS1024_graph.sh"
-fi
 echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 

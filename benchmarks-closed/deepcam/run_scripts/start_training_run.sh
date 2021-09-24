@@ -63,7 +63,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
       --partition     "accelerated"
       --output        "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.err"
-      --exclude       "hkn[0533,0614,0811]"
+      --exclude       "hkn[0518,0519,0533,0614,0811]"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else
