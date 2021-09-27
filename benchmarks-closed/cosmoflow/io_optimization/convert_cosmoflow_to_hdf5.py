@@ -104,8 +104,8 @@ with tarfile.open(root_file, 'r') as tar_f:
     if len(np.unique(all_data_files)) != len(all_data_files):
         print("There is an error with the file distribution")
 
-    hdf5file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}_all.h5"
-    files_file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}_all.h5.files"
+    hdf5file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}.h5"
+    files_file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}.h5.files"
     if MPI.COMM_WORLD.rank == 0:
         with open(files_file, "w") as g:
             g.write("\n".join(all_data_files) + '\n')
