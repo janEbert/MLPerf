@@ -117,12 +117,13 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     # for a successful scaffolding, we need to retrieve the IP addresses
     # for each instance_rank == 0 node:
     my_address = socket.gethostname()
-    #if method == "nccl-slurm": 
-    #    address = os.getenv("SLURM_TOPOLOGY_ADDR").split(".")[-1]
-    #else:
-    #    raise NotImplementedError(f"Error, wireup method {method} not implemented.")
+    # address = os.getenv("HOSTNAME")
+    # if method == "nccl-slurm":
+    #     address = os.getenv("SLURM_TOPOLOGY_ADDR").split(".")[-1]
+    # else:
+    #     raise NotImplementedError(f"Error, wireup method {method} not implemented.")
 
-    #allgather the hostname from all nodes in the instance
+    # allgather the hostname from all nodes in the instance
     addresses = mpi_instance_comm.allgather(my_address)
     addresses = sorted(list(set(addresses)))
     
