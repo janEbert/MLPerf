@@ -27,6 +27,7 @@ fi
 hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
 base_dir="${hhai_dir}benchmarks-closed/cosmoflow/"
 
+export RESULTS_ROOT="/p/scratch/jb_benchmark/cosmoflow/results"
 export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
 
 export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
@@ -47,7 +48,8 @@ echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-  --bind "${DATA_DIR_PREFIX}":/data,${SCRIPT_DIR},${OUTPUT_ROOT} ${SINGULARITY_FILE} \
+    --bind "${DATA_DIR_PREFIX}":/data,"${RESULTS_ROOT}":/results,${SCRIPT_DIR},${OUTPUT_ROOT} \
+    ${SINGULARITY_FILE} \
     bash -c "\
       PMIX_SECURITY_MODE=native; \
       HOME=''; \
