@@ -37,7 +37,7 @@ export CUDA_VISIBLE_DEVICES="0,1,2,3"
 SCRIPT_DIR="${base_dir}"
 #"/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
 # SINGULARITY_FILE="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
-SINGULARITY_FILE=/p/project/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09
+SINGULARITY_FILE=/p/project/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py.sif
 
 if [ -n "${CONFIG_FILE}" ]
   then
