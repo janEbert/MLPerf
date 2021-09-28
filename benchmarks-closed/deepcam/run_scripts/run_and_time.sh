@@ -165,6 +165,7 @@ CLEANUP_CMD="cp ${OUTPUT_DIR}/logs/${RUN_TAG}.log /results/; \
 	           sed -i 's|SUBMISSION_PLATFORM_PLACEHOLDER|${DGXSYSTEM}|g' /results/${RUN_TAG}.log"
 
 # run command
+echo "running {BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} "${PARAMS[@]}";"
 ${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} "${PARAMS[@]}"; ret_code=$?
 
 if [[ $ret_code != 0 ]]; then exit $ret_code; fi

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG FROM_IMAGE_NAME=nvcr.io/nvidia/mxnet:21.06-py3
+ARG FROM_IMAGE_NAME=nvcr.io/nvidia/mxnet:21.09
 FROM ${FROM_IMAGE_NAME}
 
 # Recommended SHARP ENV settings for NCCL
@@ -21,32 +21,45 @@ FROM ${FROM_IMAGE_NAME}
 
 # Install dependencies for system configuration logger
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-        infiniband-diags \
-        pciutils \
- && rm -rf /var/lib/apt/lists/*
+       && apt-get install -y --no-install-recommends \
+       infiniband-diags \
+       pciutils \
+       && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 WORKDIR /workspace/cosmoflow
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir https://github.com/mlperf/logging/archive/5bc16bf.zip \
- && pip install --no-cache-dir -r requirements.txt
+       && pip install --no-cache-dir -r requirements.txt
+
+# Install CUDNN
+#RUN cd /nvidia/build-scripts \
+# && git checkout master \
+# && git pull
+#RUN cd /workspace/image_classification
+#RUN installCUDNN.sh 8.2.0.51
+
+#ARG FROM_CUDNN_VERSION=8.2.4.3
+#RUN installCUDNN.sh ${FROM_CUDNN_VERSION}
+#RUN installCUDA.sh 11.4.102
+
+#RUN installNCCL.sh 2.11.4
 
 # Copy Cosmoflow code
 COPY . .
 
 # Configure environment variables
 ENV MXNET_UPDATE_ON_KVSTORE=0      \
-    MXNET_EXEC_ENABLE_ADDTO=1      \
-    MXNET_ASYNC_GPU_ENGINE=1       \
-    HOROVOD_ENABLE_ASYNC_COMPLETION=1 \
-    MXNET_USE_TENSORRT=0           \
-    MXNET_GPU_WORKER_NTHREADS=1    \
-    MXNET_GPU_COPY_NTHREADS=1      \
-    MXNET_CUDNN_AUTOTUNE_DEFAULT=0 \
-    HOROVOD_BATCH_D2D_MEMCOPIES=1  \
-    HOROVOD_GROUPED_ALLREDUCES=1   \
-    OMPI_MCA_btl=^openib \
-    OMP_NUM_THREADS=1 \
-    OPENCV_FOR_THREADS_NUM=1
+       MXNET_EXEC_ENABLE_ADDTO=1      \
+       MXNET_ASYNC_GPU_ENGINE=1       \
+       HOROVOD_ENABLE_ASYNC_COMPLETION=1 \
+       MXNET_USE_TENSORRT=0           \
+       MXNET_GPU_WORKER_NTHREADS=1    \
+       MXNET_GPU_COPY_NTHREADS=1      \
+       MXNET_CUDNN_AUTOTUNE_DEFAULT=0 \
+       HOROVOD_BATCH_D2D_MEMCOPIES=1  \
+       HOROVOD_GROUPED_ALLREDUCES=1   \
+       OMPI_MCA_btl=^openib \
+       OMP_NUM_THREADS=1 \
+       OPENCV_FOR_THREADS_NUM=1

@@ -23,6 +23,7 @@ import os
 import socket
 import torch
 import torch.distributed as dist
+from datetime import timedelta
 
 
 def get_rank():
@@ -96,9 +97,11 @@ def get_local_group(batchnorm_group_size):
 # split comms using MPI
 def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     
+    print("importing MPI")
     # import MPI here:
     from mpi4py import MPI
     
+    print("done")
     # get MPI stuff
     mpi_comm = MPI.COMM_WORLD.Dup()
     comm_size = mpi_comm.Get_size()
@@ -116,27 +119,48 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     
     # for a successful scaffolding, we need to retrieve the IP addresses
     # for each instance_rank == 0 node:
-    my_address = socket.gethostname()
-    # address = os.getenv("HOSTNAME")
-    # if method == "nccl-slurm":
-    #     address = os.getenv("SLURM_TOPOLOGY_ADDR").split(".")[-1]
-    # else:
-    #     raise NotImplementedError(f"Error, wireup method {method} not implemented.")
+    address = None
+    if method == "nccl-slurm": 
+        address = os.getenv("HOSTNAME")
+        sp=address.split(".")
+        if len(sp) == 2 and sp[1]=="juwels":
+            address=sp[0]+"i."+"juwels"
+        #bacst that into to everybody
+        address = mpi_instance_comm.bcast(address, root=0)
+        print("MASTER_ADDR is set to ", address)
 
-    # allgather the hostname from all nodes in the instance
-    addresses = mpi_instance_comm.allgather(my_address)
-    addresses = sorted(list(set(addresses)))
-    
-    if verbose and instance_rank == 0:
-        print(f"Hosts in instance {instance_id}: {addresses}", flush=True)
+        # save env vars
+        port = "29500"
+        os.environ["MASTER_ADDR"] = address
+        os.environ["MASTER_PORT"] = port
+        wireup_store=None
+        hostname = address #example
+        response = os.system("bash -c \"ping -c 1 " + hostname+ "\"")
+        
+        #and then check the response...
+        if response == 0:
+          print(comm_rank, "can reach", hostname, '. This works!')
+        else:
+          print(comm_rank, "cannot reach", hostname, '. This does not work!')
 
-    # set the master address:
-    address = addresses[0]
 
-    # save env vars
-    port = "29500"
-    os.environ["MASTER_ADDR"] = address
-    os.environ["MASTER_PORT"] = port
+    elif method == "nccl-file":
+        directory=os.environ["OUTPUT_DIR"]
+        master_filename = os.path.join(directory, f"instance{instance_id}.store")
+        if comm_rank == 0:
+            os.makedirs(directory, exist_ok=True)
+        mpi_comm.Barrier()
+
+        # delete the wireup file if it exists
+        if (instance_rank == 0) and os.path.isfile(master_filename):
+            os.remove(master_filename)
+        mpi_instance_comm.Barrier()
+        print("creating file store")
+        wireup_store = dist.FileStore(file_name = master_filename,
+                 world_size = instance_size)
+        print("done")
+    else:
+        raise NotImplementedError(f"Error, wireup method {method} not implemented.")
 
     #if verbose:
     #    mpi_comm.barrier()
@@ -151,8 +175,11 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         # initialize group
         dist.init_process_group(backend = "nccl",
+                                store = wireup_store,
                                 rank = instance_rank,
-                                world_size = instance_size)
+                                world_size = instance_size,
+                                timeout=timedelta(seconds=120))
+        print("done")
 
         # make sure to call a barrier here in order for sharp to use the default comm:
         dist.barrier(device_ids = [get_local_rank()])

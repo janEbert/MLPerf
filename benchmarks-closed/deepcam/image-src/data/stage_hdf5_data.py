@@ -11,7 +11,6 @@ import torch.cuda.nvtx as nvtx
 import copy
 
 import torch
-import io_helpers as ioh
 import h5py
 import subprocess
 
@@ -262,7 +261,6 @@ def stage_instance_data(
     print("getting dataset", dataset)
     ds = f.get(dataset)
     num_files = ds.shape[0]
-    num_files = 100  # limited for testing
 
     shard_start, shard_end = get_shard_range(num_files, isize, irank, cycle_dist=lsize)
     print("shard_start", shard_start, " on rank ", irank)
@@ -498,14 +496,14 @@ def stage_data_helper(
         # close range
         nvtx.range_pop()
 
-    if irank == 0:
-        print("now look at my files")
-        f = subprocess.check_output(["find", "/tmp/deepcam"])
-        print(f.decode('utf-8'))
-        print("/look")
+    #if irank==0:
+    #    print("now look at my files")
+    #    f=subprocess.check_output(["find", "/tmp/deepcam"])
+    #    print(f.decode('utf-8'))
+    #    print("/look")
     # make sure we have the right number of files everywhere
-    # assert(file_stats['validation/data-*.npy'] == file_stats['validation/label-*.npy'])
-    # assert(file_stats['train/data-*.npy'] == file_stats['train/label-*.npy'])
-
-    # return file_stats['train/data-*.npy'], file_stats['validation/data-*.npy']
-    return 121266, 15158
+    #assert(file_stats['validation/data-*.npy'] == file_stats['validation/label-*.npy'])
+    #assert(file_stats['train/data-*.npy'] == file_stats['train/label-*.npy'])
+    
+    #return file_stats['train/data-*.npy'], file_stats['validation/data-*.npy']
+    return 121266, 15158 
