@@ -17,6 +17,23 @@ export USE_IME=0
 # Whether to use HDF5 data.
 export USE_H5=1
 
+# How many parallel trainings to run to test weak scaling
+# (strong scaling has `INSTANCES=1`).
+export INSTANCES=1
+
+# Only apply prestaging when we
+# 1. have only one parallel training run
+# 2. have enough nodes to be able to support the memory requirements.
+export APPLY_PRESTAGE=$(
+    if [ "$INSTANCES" -gt 1 ]; then
+        echo 0
+    elif [ "$SLURM_NNODES" -ge 64 ]; then
+        echo 1
+    else
+        echo 0
+    fi
+       )
+
 if [[ ${USE_H5} -ge 1 ]]; then
     if [[ ${USE_IME} -ge 1 ]]; then
         export DATA_DIR_PREFIX="/p/ime-scratch/fs/jb_benchmark/cosmoflow"
