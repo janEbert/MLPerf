@@ -40,6 +40,7 @@ export APPLY_PRESTAGE=$(
 
 if [[ ${USE_H5} -ge 1 ]]; then
     if [[ ${USE_IME} -ge 1 ]]; then
+        export HDF5_USE_FILE_LOCKING=FALSE
         export DATA_DIR_PREFIX="/p/ime-scratch/fs/jb_benchmark/cosmoflow"
     else
         export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoflow"
