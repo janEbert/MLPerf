@@ -31,10 +31,13 @@ def stage_files(
         data_filenames: List[str],
         label_filenames: List[str],
         shard_mult: int,
+        preshuffle_permutation: np.ndarray,
 ) -> Tuple[List[str], List[str], Callable]:
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
     all_indices = np.arange(len(data_filenames))
+    if preshuffle_permutation is not None:
+        all_indices = all_indices[preshuffle_permutation]
 
     files_per_node = len(data_filenames) // number_of_nodes
     per_node_indices = all_indices[
@@ -254,16 +257,23 @@ class H5CosmoDataset(datam.CosmoDataset):
                 np.random.permutation(n_samples))
             self.dist.comm.Bcast(preshuffle_permutation, root=0)
 
-            # FIXME This only works if DALI does not care about the
-            #       filename list order.
-            #       If that is not the case, we could instead shuffle the
-            #       indices querying the HDF5 file.
-            #       Finally, since the data is already pre-shuffled,
-            #       we can also just omit this.
-            data_filenames = \
-                list(np.array(data_filenames)[preshuffle_permutation])
-            label_filenames = \
-                list(np.array(label_filenames)[preshuffle_permutation])
+            # This only works if DALI does not care about the
+            # filename list order.
+            # If that is not the case, we could instead shuffle the
+            # indices querying the HDF5 file.
+            # Finally, since the data is already pre-shuffled,
+            # we can also just omit this.
+            # Since we now shuffle the indices (resulting in slower
+            # staging but safer preshuffling), we comment this out. If
+            # we didn't comment this out, preshuffling would have no
+            # effect.
+
+            # data_filenames = \
+            #     list(np.array(data_filenames)[preshuffle_permutation])
+            # label_filenames = \
+            #     list(np.array(label_filenames)[preshuffle_permutation])
+        else:
+            preshuffle_permutation = None
 
         if shard == "local":
             if shard_mult == 1:
@@ -296,6 +306,7 @@ class H5CosmoDataset(datam.CosmoDataset):
                     data_filenames,
                     label_filenames,
                     shard_mult,
+                    preshuffle_permutation,
                 )
                 data_dir_ = output_path
 
@@ -329,7 +340,7 @@ class H5CosmoDataset(datam.CosmoDataset):
                     batch_size,
                     self.dist,
                     shard_mult,
-                    preshuffle_permutation if preshuffle else None,
+                    preshuffle_permutation,
                 )
 
                 SAMPLE_SIZE_DATA = 4 * math.prod(self.data_shapes[0])
