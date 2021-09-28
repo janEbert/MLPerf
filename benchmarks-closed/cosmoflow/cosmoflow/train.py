@@ -124,7 +124,7 @@ def main(args: argparse.Namespace):
 
     utils.logger.event(key=utils.logger.constants.SUBMISSION_BENCHMARK, 
                        value="cosmoflow")
-    utils.logger.event(key=utils.logger.constants.SUBMISSION_ORG, value="NVIDIA")
+    utils.logger.event(key=utils.logger.constants.SUBMISSION_ORG, value="HelmholtzAI")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_DIVISION, value="closed")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_STATUS, value="onprem")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_PLATFORM, value="DGXA100")
