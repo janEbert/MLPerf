@@ -222,9 +222,6 @@ class H5CosmoDataset(datam.CosmoDataset):
             preshuffle: bool = False,
             shard_mult: int = 1,
     ) -> Tuple[Pipeline, int]:
-        # We need this to always be `True`.
-        prestage = True
-
         data_filenames = datam._load_file_list(data_dir, "files_data.lst")
         label_filenames = datam._load_file_list(data_dir, "files_label.lst")
 

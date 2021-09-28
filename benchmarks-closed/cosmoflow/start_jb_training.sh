@@ -18,8 +18,6 @@ export USE_IME=0
 export USE_H5=1
 
 if [[ ${USE_H5} -ge 1 ]]; then
-    # We need to use prestaging with HDF5 data.
-    export APPLY_PRESTAGE=1
     if [[ ${USE_IME} -ge 1 ]]; then
         export DATA_DIR_PREFIX="/p/ime-scratch/fs/jb_benchmark/cosmoflow"
     else
