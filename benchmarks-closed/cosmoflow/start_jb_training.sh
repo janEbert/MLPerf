@@ -7,11 +7,11 @@ ml purge
 
 SRUN_PARAMS=(
   --mpi            pspmix
-#  --cpu-bind       none
+  --cpu-bind       none
   #--label
 )
 
-export SLURM_CPU_BIND_USER_SET="ldoms"
+export SLURM_CPU_BIND_USER_SET="none"
 
 export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
 
@@ -23,10 +23,12 @@ export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/c
 export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
 # director for image: /workspace/cosmoflow/
 #export CUDA_AVAILABLE_DEVICES="0,1,2,3"
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
 
 SCRIPT_DIR="${base_dir}"
 #"/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
-SINGULARITY_FILE="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
+# SINGULARITY_FILE="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
+SINGULARITY_FILE=/p/project/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09
 
 if [ -n "${CONFIG_FILE}" ]
   then
@@ -35,9 +37,10 @@ fi
 echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
-
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
   --bind "${DATA_DIR_PREFIX}":/data,${SCRIPT_DIR},${OUTPUT_ROOT} ${SINGULARITY_FILE} \
     bash -c "\
+      PMIX_SECURITY_MODE=native; \
+      HOME=''; \
       source ${CONFIG_FILE}; \
       bash run_and_time.sh"

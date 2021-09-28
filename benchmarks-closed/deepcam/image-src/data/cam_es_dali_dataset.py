@@ -434,7 +434,7 @@ class CamDaliESDataloader(object):
 
     
     def __iter__(self):
-        #self.iterator.reset()
+        self.iterator.reset()
         for token in self.iterator:
             data = token[0]['data']
             label = token[0]['label']

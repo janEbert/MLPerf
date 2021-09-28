@@ -363,11 +363,14 @@ class Trainer(object):
 def train_step(pargs, comm_rank, comm_size,
                step, epoch, trainer,
                train_loader,
-               logger, have_wandb):
+               logger, have_wandb, max_num_steps_per_epoch=None):
     
     # epoch loop
-    for inputs, label, filename in train_loader:
+    for step_in_epoch, (inputs, label, filename) in enumerate(train_loader):
     
+        if step_in_epoch==max_num_steps_per_epoch:
+            break
+
         if not trainer.enable_dali:
             # send to device
             inputs = inputs.to(trainer.device)

@@ -19,7 +19,7 @@ while test $# -gt 0; do
     -s|--system) shift; export TRAINING_SYSTEM=$1; shift; ;;
     -N|--nodes) shift; export SLURM_NNODES=$1; shift; ;;
     -t|--time) shift; export TIMELIMIT=$1; shift; ;;
-    -c|--config) shift; export CONFIG_FILE=$1; shift; ;;
+    -c|--config) shift; export CONFIG_FILE=$1; echo set config file; shift; ;;
     *) break; ;;
   esac
 done
@@ -50,7 +50,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "jucha"
+      --account       "training2105"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 

@@ -108,7 +108,7 @@ class ArgumentParser(object):
                 cls.REGISTERED_EXTENSIONS[arg_group_name].append(function)
             else:
                 cls.REGISTERED_EXTENSIONS[arg_group_name] = [function]
-            logging.debug(f"Registered argument group {arg_group_name} using function {function}")
+            #logging.debug(f"Registered argument group {arg_group_name} using function {function}")
             return function
         return wrapper
 

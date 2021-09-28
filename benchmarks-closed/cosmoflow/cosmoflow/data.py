@@ -7,7 +7,7 @@ import random
 import os
 from types import resolve_bases
 
-from typing import Union, List, Tuple, Literal
+from typing import Callable, Union, List, Tuple, Literal
 
 import numpy as np
 from nvidia.dali.plugin.base_iterator import LastBatchPolicy
@@ -183,38 +183,46 @@ class CosmoDataset(object):
             -> Tuple[dali_mxnet.DALIGenericIterator, int, int]:
         data_path = self.root_dir / "train"
 
-        pipeline, samples = self._construct_pipeline(data_path, batch_size,
-                                                     n_samples=n_samples, 
-                                                     shard=shard, shuffle=shuffle, 
-                                                     prestage=(shard == "local") and prestage,
-                                                     preshuffle=preshuffle,
-                                                     shard_mult=shard_mult)
+        pipeline_builder, samples = self._construct_pipeline(data_path, batch_size,
+                                                             n_samples=n_samples, 
+                                                             shard=shard, shuffle=shuffle, 
+                                                             prestage=(shard == "local") and prestage,
+                                                             preshuffle=preshuffle,
+                                                             shard_mult=shard_mult)
         assert samples % self.dist.size == 0, \
             f"Cannot divide {samples} items into {self.dist.size} workers"
 
         iter_count = samples // self.dist.size // batch_size
-        iterator = dali_mxnet.DALIGluonIterator(pipeline,
-                                                reader_name="data_reader",
-                                                last_batch_policy=LastBatchPolicy.PARTIAL)
+        
+        def iterator_builder():
+            pipeline = pipeline_builder()
+            iterator = dali_mxnet.DALIGluonIterator(pipeline,
+                                                    reader_name="data_reader",
+                                                    last_batch_policy=LastBatchPolicy.PARTIAL)
+            return iterator
 
-        return iterator, iter_count, samples
+        return iterator_builder, iter_count, samples
 
     def validation_dataset(self, batch_size: int, shard: bool = True, n_samples: int = -1) \
             -> Tuple[dali_mxnet.DALIGenericIterator, int, int]:
         data_path = self.root_dir / "validation"
 
-        pipeline, samples = self._construct_pipeline(data_path, batch_size,
-                                                     n_samples=n_samples, shard="global", 
-                                                     prestage=False)
+        pipeline_builder, samples = self._construct_pipeline(data_path, batch_size,
+                                                             n_samples=n_samples, shard="global", 
+                                                             prestage=False)
         assert samples % self.dist.size == 0 or not shard, \
             f"Cannot divide {samples} items into {self.dist.size} workers"
 
         iter_count = samples // (self.dist.size if shard else 1) // batch_size
-        iterator = dali_mxnet.DALIGluonIterator(pipeline,
-                                                reader_name="data_reader",
-                                                last_batch_policy=LastBatchPolicy.PARTIAL)
 
-        return iterator, iter_count, samples
+        def iterator_builder():
+            pipeline = pipeline_builder()
+            iterator = dali_mxnet.DALIGluonIterator(pipeline,
+                                                    reader_name="data_reader",
+                                                    last_batch_policy=LastBatchPolicy.PARTIAL)
+            return iterator
+
+        return iterator_builder, iter_count, samples
 
     def _construct_pipeline(self, data_dir: pathlib.Path,
                             batch_size: int,
@@ -241,12 +249,6 @@ class CosmoDataset(object):
             data_filenames = list(np.array(data_filenames)[preshuffle_permutation])
             label_filenames = list(np.array(label_filenames)[preshuffle_permutation])
 
-        if prestage:
-            output_path = pathlib.Path("/tmp", "dataset") / data_dir.parts[-1]
-            data_filenames, label_filenames = stage_files_to_tmp(
-                self.dist, data_dir, output_path, data_filenames, label_filenames,
-                shard_mult)
-            data_dir = output_path
 
         if shard == "local":
             if shard_mult == 1:
@@ -260,48 +262,62 @@ class CosmoDataset(object):
         else:
             shard_id, num_shards = 0, 1
 
-        return (get_dali_pipeline(data_dir,
-                                  data_filenames,
-                                  label_filenames,
-                                  dont_use_mmap=not self.use_mmap,
-                                  shard_id=shard_id,
-                                  num_shards=num_shards,
-                                  apply_log=self.apply_log,
-                                  batch_size=batch_size,
-                                  dali_threads=self.threads,
-                                  device_id=self.dist.local_rank,
-                                  shuffle=shuffle,
-                                  data_layout=self.data_layout,
-                                  sample_shape=self.data_shapes[0],
-                                  target_shape=self.data_shapes[1],
-                                  seed=self.seed),
+        def pipeline_builder():
+            data_filenames_ = data_filenames
+            label_filenames_ = label_filenames
+            data_dir_ = data_dir
+
+            if prestage:
+                output_path = pathlib.Path("/staging_area", "dataset") / data_dir.parts[-1]
+                data_filenames_, label_filenames_ = stage_files(
+                    self.dist, data_dir, output_path, data_filenames, label_filenames,
+                    shard_mult)
+                data_dir_ = output_path
+
+            return get_dali_pipeline(data_dir_,
+                                    data_filenames_,
+                                    label_filenames_,
+                                    dont_use_mmap=not self.use_mmap,
+                                    shard_id=shard_id,
+                                    num_shards=num_shards,
+                                    apply_log=self.apply_log,
+                                    batch_size=batch_size,
+                                    dali_threads=self.threads,
+                                    device_id=self.dist.local_rank,
+                                    shuffle=shuffle,
+                                    data_layout=self.data_layout,
+                                    sample_shape=self.data_shapes[0],
+                                    target_shape=self.data_shapes[1],
+                                    seed=self.seed)
+
+        return (pipeline_builder,
                 n_samples)
 
-def stage_files_to_tmp(dist_desc: utils.DistributedEnvDesc,
-                       data_dir: pathlib.Path,
-                       output_dir: pathlib.Path,
-                       data_filenames: List[str],
-                       label_filenames: List[str],
-                       shard_mult: int) -> Tuple[List[str], List[str]]:
+def stage_files(dist_desc: utils.DistributedEnvDesc,
+                data_dir: pathlib.Path,
+                output_dir: pathlib.Path,
+                data_filenames: List[str],
+                label_filenames: List[str],
+                shard_mult: int) -> Tuple[List[str], List[str], Callable]:
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
     
-
     files_per_node = len(data_filenames) // number_of_nodes
-    files_per_shard = len(data_filenames) / dist_desc.size
-
     per_node_data_filenames = data_filenames[current_node * files_per_node : (current_node+1) * files_per_node]
     per_node_label_filenames = label_filenames[current_node * files_per_node : (current_node+1) * files_per_node]
 
-    copied_files = 0
-    import shutil
     os.makedirs(output_dir, exist_ok=True)
     #print("started to staging files")
+
+    import shutil
+
+    copied_files = 0
     for data, label in zip(per_node_data_filenames[dist_desc.local_rank::dist_desc.local_size],
                            per_node_label_filenames[dist_desc.local_rank::dist_desc.local_size]):
         shutil.copy(data_dir / data, output_dir / data)
         shutil.copy(data_dir / label, output_dir / label)
         copied_files += 1
+
     #print(f"Node {current_node}, process {dist_desc.local_rank}, dataset contains {len(data_filenames)} samples, ",
     #      f"per node {len(per_node_data_filenames)}, copied {copied_files}")
 
@@ -309,22 +325,19 @@ def stage_files_to_tmp(dist_desc: utils.DistributedEnvDesc,
     return per_node_data_filenames, per_node_label_filenames
 
 def get_rec_iterators(args: argparse.Namespace, dist_desc: utils.DistributedEnvDesc) \
-        -> Tuple[dali_mxnet.DALIGenericIterator, int,
-                 dali_mxnet.DALIGenericIterator, int]:
+        -> Tuple[Callable, int, int]:
     cosmoflow_dataset = CosmoDataset(args.data_root_dir, dist=dist_desc,
                                      use_mmap=args.dali_use_mmap,
                                      apply_log=args.apply_log_transform,
                                      dali_threads=args.dali_num_threads,
                                      data_layout=args.data_layout,
                                      seed=args.seed)
-
-    utils.logger.start(key='staging_start')
-    train_iterator, training_steps, training_samples = cosmoflow_dataset.training_dataset(
+    train_iterator_builder, training_steps, training_samples = cosmoflow_dataset.training_dataset(
         args.training_batch_size, args.shard_type, args.shuffle, args.preshuffle, args.training_samples,
         args.data_shard_multiplier, args.prestage)
-    val_iterator, val_steps, val_samples = cosmoflow_dataset.validation_dataset(
+    val_iterator_builder, val_steps, val_samples = cosmoflow_dataset.validation_dataset(
         args.validation_batch_size, True, args.validation_samples)
-    utils.logger.end(key='staging_stop')
+    
 
     # MLPerf logging of batch size, and number of samples used in training
     utils.logger.event(key=utils.logger.constants.GLOBAL_BATCH_SIZE,
@@ -332,7 +345,14 @@ def get_rec_iterators(args: argparse.Namespace, dist_desc: utils.DistributedEnvD
     utils.logger.event(key=utils.logger.constants.TRAIN_SAMPLES, value=training_samples)
     utils.logger.event(key=utils.logger.constants.EVAL_SAMPLES, value=val_samples)
 
+    def iterator_builder():
+        utils.logger.start(key='staging_start')
+        train_iterator = train_iterator_builder()
+        val_iterator = val_iterator_builder()
+        utils.logger.end(key='staging_stop')
 
+        return train_iterator, val_iterator
 
-    return (train_iterator, training_steps,
-            val_iterator, val_steps)
+    return (iterator_builder,
+            training_steps,
+            val_steps)
