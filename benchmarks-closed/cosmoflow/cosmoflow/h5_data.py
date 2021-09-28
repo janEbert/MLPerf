@@ -81,6 +81,7 @@ class ShardedH5Iterator:
         "NUM_OUTPUTS",
         "batch_size",
         "shard_indices",
+        "preshuffle",
         "curr_index",
         "h5_file",
         "data_dset",
@@ -96,21 +97,30 @@ class ShardedH5Iterator:
             batch_size,
             dist_desc,
             shard_mult,
+            preshuffle_permutation,
     ):
         self.batch_size = batch_size
 
         number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
         current_node = dist_desc.rank // dist_desc.local_size // shard_mult
-        all_indices = np.arange(
-            0,
-            num_samples,
-            self.batch_size,
-        )
+        self.preshuffle = preshuffle_permutation is not None
+        if self.preshuffle:
+            all_indices = np.arange(0, num_samples)
+            all_indices = all_indices[preshuffle_permutation]
 
-        batches_per_node = len(all_indices) // number_of_nodes
+            indices_per_node = num_samples // number_of_nodes
+        else:
+            all_indices = np.arange(
+                0,
+                num_samples,
+                self.batch_size,
+            )
+
+            indices_per_node = len(all_indices) // number_of_nodes
+
         next_node = current_node + 1
         per_node_indices = all_indices[
-            current_node * batches_per_node:next_node * batches_per_node]
+            current_node * indices_per_node:next_node * indices_per_node]
         self.shard_indices = per_node_indices[
             dist_desc.local_rank::dist_desc.local_size]
 
@@ -129,10 +139,19 @@ class ShardedH5Iterator:
         if self.curr_index >= len(self.shard_indices):
             raise StopIteration
 
-        i = self.shard_indices[self.curr_index]
-        data_batch = self.data_dset[i:i + self.batch_size]
-        label_batch = self.label_dset[i:i + self.batch_size]
-        self.curr_index += 1
+        if self.preshuffle:
+            next_index = self.curr_index + self.batch_size
+            indices = self.shard_indices[self.curr_index:next_index]
+            data_batch = self.data_dset[indices]
+            label_batch = self.label_dset[indices]
+
+            self.curr_index = next_index
+        else:
+            i = self.shard_indices[self.curr_index]
+            data_batch = self.data_dset[i:i + self.batch_size]
+            label_batch = self.label_dset[i:i + self.batch_size]
+
+            self.curr_index += 1
 
         return (data_batch, label_batch)
 
@@ -310,6 +329,7 @@ class H5CosmoDataset(datam.CosmoDataset):
                     batch_size,
                     self.dist,
                     shard_mult,
+                    preshuffle_permutation if preshuffle else None,
                 )
 
                 SAMPLE_SIZE_DATA = 4 * math.prod(self.data_shapes[0])
