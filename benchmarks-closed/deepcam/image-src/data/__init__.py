@@ -72,6 +72,8 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
             label_filter = 'label-*.npy'
             oversampling_factor = pargs.data_oversampling_factor
             kwargs = dict(cache_directory = os.path.join(pargs.data_cache_directory, "train"))
+        else:
+            print("data_format not understood", pargs.data_format)
             
         train_dir = os.path.join(root_dir, "train")
         train_loader = dl_handle(train_dir,

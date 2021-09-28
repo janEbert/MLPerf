@@ -11,7 +11,6 @@ import torch.cuda.nvtx as nvtx
 import copy
 
 import torch
-import io_helpers as ioh
 import h5py
 import subprocess
 
@@ -48,15 +47,14 @@ def get_shard_range(num_files, num_shards, shard_id, cycle_dist=0):
     num_files_per_shard = num_files // num_shards
     num_files_bulk = num_files_per_shard * num_shards
     num_files_remainder = num_files%num_shards
+    # We drop all files above the remainder
     print("num_files_remainder", num_files_remainder)
 
     shard_start=[0]
     for i in range(1,num_shards):
         if i-1 < num_files_remainder:
-            print("adding one")
             this_shard_start=shard_start[-1]+(num_files_per_shard+1)
         else:
-            print("not adding one")
             this_shard_start=shard_start[-1]+(num_files_per_shard)
         shard_start.append(this_shard_start)
     shard_start.append(num_files)
@@ -258,7 +256,7 @@ def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
     print("getting dataset", dataset)
     ds = f.get(dataset)
     num_files = ds.shape[0]
-    num_files = 100 # limited for testing
+#    num_files = 100 # limited for testing
 
     shard_start, shard_end = get_shard_range(num_files, isize, irank, cycle_dist=lsize)
     print("shart_start", shard_start, " on rank ", irank)
@@ -284,7 +282,6 @@ def stage_instance_data(stage_comm, instance_comm, instance_node_comm,
              outputfile=id_+"-" + "{:06}".format(chunk_start+i) + ".npy"
              np.save(os.path.join(target_directory, outputfile), data[i])
              files_local.append(outputfile)
-             print("heyhey ", outputfile, " on ", irank)
          #with open(os.path.join(target_directory, tag + "_" + dataset + ".lst"), "w") as f:
          #    f.write("\n".join(files_local))
          if chunk_end==shard_end:
@@ -612,14 +609,14 @@ def stage_data_helper(global_comm, num_instances, instance_id, instance_comm,
         nvtx.range_pop()
             
 
-    if irank==0:
-        print("now look at my files")
-        f=subprocess.check_output(["find", "/tmp/deepcam"])
-        print(f.decode('utf-8'))
-        print("/look")
+    #if irank==0:
+    #    print("now look at my files")
+    #    f=subprocess.check_output(["find", "/tmp/deepcam"])
+    #    print(f.decode('utf-8'))
+    #    print("/look")
     # make sure we have the right number of files everywhere
     #assert(file_stats['validation/data-*.npy'] == file_stats['validation/label-*.npy'])
     #assert(file_stats['train/data-*.npy'] == file_stats['train/label-*.npy'])
     
     #return file_stats['train/data-*.npy'], file_stats['validation/data-*.npy']
-    return None, None
+    return 121266, 15158 

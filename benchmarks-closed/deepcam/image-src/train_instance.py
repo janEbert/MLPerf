@@ -19,7 +19,6 @@
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 # Basics
 import os
 import sys
@@ -38,6 +37,7 @@ except ImportError:
 
 # mlperf logger
 import utils.mlperf_log_utils as mll
+
 
 # Torch
 import torch
@@ -75,6 +75,7 @@ def main(pargs):
 
     # this should be global
     global have_wandb
+    print("starting main")
 
     #init distributed training
     mpi_comm, mpi_instance_comm, instance_id, comm_local_group = comm.init_split(pargs.wireup_method,
@@ -90,7 +91,7 @@ def main(pargs):
     # set up logging
     pargs.logging_frequency = max([pargs.logging_frequency, 1])
     log_file = os.path.normpath(os.path.join(pargs.output_dir, pargs.run_tag + f"_{instance_id}.log"))
-    logger = mll.mlperf_logger(log_file, "deepcam", "SUBMISSION_ORG_PLACEHOLDER")
+    logger = mll.mlperf_logger(log_file, "deepcam", "HelmholtzAI")
     logger.log_start(key = "init_start", sync = True)        
     logger.log_event(key = "cache_clear")
     
@@ -99,7 +100,7 @@ def main(pargs):
     logger.log_event(key = "seed", value = seed)
     
     # stage data if requested
-    if pargs.stage_dir_prefix is not None:
+    if pargs.stage_dir_prefix is not None and not pargs.data_format.endswith("dummy"):
         full_dataset_per_node = pargs.stage_full_data_per_node
         num_instances = mpi_comm.Get_size() // mpi_instance_comm.Get_size()
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
@@ -128,6 +129,8 @@ def main(pargs):
         root_dir = pargs.data_dir_prefix
         num_shards = comm_size
         shard_id = comm_rank
+    if  pargs.data_format.endswith("dummy"):
+        global_train_size, global_validation_size=121266, 15158
     
     # Some setup
     torch.manual_seed(seed)
@@ -322,6 +325,9 @@ def main(pargs):
     logger.log_event(key = "train_samples", value = train_size)
     logger.log_event(key = "eval_samples", value = validation_size)
     
+    num_steps_per_epoch=global_train_size//mpi_instance_comm.Get_size()//pargs.local_batch_size
+    if comm_rank == 0:
+        print("Number of steps per epoch", num_steps_per_epoch)
         
     # create trainer object
     if comm_rank == 0:
@@ -366,7 +372,7 @@ def main(pargs):
     logger.log_start(key = "run_start", sync = True)
 
     # stage the data or start prefetching
-    if pargs.stage_dir_prefix is not None:
+    if pargs.stage_dir_prefix is not None and not pargs.data_format.endswith("dummy"):
         logger.log_start(key = "staging_start")
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
         global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
@@ -403,7 +409,7 @@ def main(pargs):
         step = train_step(pargs, comm_rank, comm_size,
                           step, epoch, trainer,
                           train_loader,
-                          logger, have_wandb)
+                          logger, have_wandb, num_steps_per_epoch)
 
         if not pargs.disable_validation:
             # impute values for gbn
