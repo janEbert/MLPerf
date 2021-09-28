@@ -1,11 +1,18 @@
+import atexit
 import argparse
+import math
 import os
 import pathlib
 from typing import Callable, List, Tuple
 
 import h5py
 import numpy as np
+import nvidia.dali.fn as dali_fn
+import nvidia.dali.math as dali_math
 from nvidia.dali.pipeline import Pipeline
+from nvidia.dali.plugin.base_iterator import LastBatchPolicy
+import nvidia.dali.plugin.mxnet as dali_mxnet
+import nvidia.dali.types as dali_types
 
 import data as datam  # "datam" = "data module"
 import utils
@@ -69,7 +76,141 @@ def stage_files(
     return per_node_data_filenames, per_node_label_filenames
 
 
+class ShardedH5Iterator:
+    ___slots___ = [
+        "NUM_OUTPUTS",
+        "batch_size",
+        "shard_indices",
+        "curr_index",
+        "h5_file",
+        "data_dset",
+        "label_dset",
+    ]
+
+    NUM_OUTPUTS = 2
+
+    def __init__(
+            self,
+            h5_path,
+            num_samples,
+            batch_size,
+            dist_desc,
+            shard_mult,
+    ):
+        self.batch_size = batch_size
+
+        number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
+        current_node = dist_desc.rank // dist_desc.local_size // shard_mult
+        all_indices = np.arange(
+            0,
+            num_samples,
+            self.batch_size,
+        )
+
+        batches_per_node = len(all_indices) // number_of_nodes
+        next_node = current_node + 1
+        per_node_indices = all_indices[
+            current_node * batches_per_node:next_node * batches_per_node]
+        self.shard_indices = per_node_indices[
+            dist_desc.local_rank::dist_desc.local_size]
+
+        atexit.register(self.clean_up)
+        self.h5_file = h5py.File(h5_path, 'r')
+        self.data_dset = self.h5_file['data']
+        self.label_dset = self.h5_file['label']
+
+    # The reason we choose this more weird setup is because DALI handles
+    # generator functions with some magic. We try to avoid their magic.
+    def __iter__(self):
+        self.curr_index = 0
+        return self
+
+    def __next__(self):
+        if self.curr_index >= len(self.shard_indices):
+            raise StopIteration
+
+        i = self.shard_indices[self.curr_index]
+        data_batch = self.data_dset[i:i + self.batch_size]
+        label_batch = self.label_dset[i:i + self.batch_size]
+        self.curr_index += 1
+
+        return (data_batch, label_batch)
+
+    def clean_up(self):
+        try:
+            self.h5_file.close()
+        except Exception:
+            pass
+
+
 class H5CosmoDataset(datam.CosmoDataset):
+    def training_dataset(
+            self,
+            batch_size: int,
+            shard: str = "global",
+            shuffle: bool = False,
+            preshuffle: bool = False,
+            n_samples: int = -1,
+            shard_mult: int = 1,
+            prestage: bool = False
+    ) -> Tuple[dali_mxnet.DALIGenericIterator, int, int]:
+        data_path = self.root_dir / "train"
+
+        pipeline_builder, samples = self._construct_pipeline(
+            data_path,
+            batch_size,
+            n_samples=n_samples,
+            shard=shard,
+            shuffle=shuffle,
+            prestage=(shard == "local") and prestage,
+            preshuffle=preshuffle,
+            shard_mult=shard_mult,
+        )
+        assert samples % self.dist.size == 0, \
+            f"Cannot divide {samples} items into {self.dist.size} workers"
+
+        iter_count = samples // self.dist.size // batch_size
+
+        def iterator_builder():
+            pipeline = pipeline_builder()
+            iterator = dali_mxnet.DALIGluonIterator(
+                pipeline,
+                last_batch_policy=LastBatchPolicy.PARTIAL,
+            )
+            return iterator
+
+        return iterator_builder, iter_count, samples
+
+    def validation_dataset(
+            self,
+            batch_size: int,
+            shard: bool = True,
+            n_samples: int = -1,
+    ) -> Tuple[dali_mxnet.DALIGenericIterator, int, int]:
+        data_path = self.root_dir / "validation"
+
+        pipeline_builder, samples = self._construct_pipeline(
+            data_path,
+            batch_size,
+            n_samples=n_samples,
+            shard="global",
+            prestage=False,
+        )
+        assert samples % self.dist.size == 0 or not shard, \
+            f"Cannot divide {samples} items into {self.dist.size} workers"
+
+        iter_count = samples // (self.dist.size if shard else 1) // batch_size
+
+        def iterator_builder():
+            pipeline = pipeline_builder()
+            iterator = dali_mxnet.DALIGluonIterator(
+                pipeline,
+                last_batch_policy=LastBatchPolicy.PARTIAL,
+            )
+            return iterator
+
+        return iterator_builder, iter_count, samples
+
     def _construct_pipeline(
             self,
             data_dir: pathlib.Path,
@@ -142,23 +283,67 @@ class H5CosmoDataset(datam.CosmoDataset):
                 )
                 data_dir_ = output_path
 
-            return datam.get_dali_pipeline(
-                data_dir_,
-                data_filenames_,
-                label_filenames_,
-                dont_use_mmap=not self.use_mmap,
-                shard_id=shard_id,
-                num_shards=num_shards,
-                apply_log=self.apply_log,
-                batch_size=batch_size,
-                dali_threads=self.threads,
-                device_id=self.dist.local_rank,
-                shuffle=shuffle,
-                data_layout=self.data_layout,
-                sample_shape=self.data_shapes[0],
-                target_shape=self.data_shapes[1],
-                seed=self.seed,
-            )
+                return datam.get_dali_pipeline(
+                    data_dir_,
+                    data_filenames_,
+                    label_filenames_,
+                    dont_use_mmap=not self.use_mmap,
+                    shard_id=shard_id,
+                    num_shards=num_shards,
+                    apply_log=self.apply_log,
+                    batch_size=batch_size,
+                    dali_threads=self.threads,
+                    device_id=self.dist.local_rank,
+                    shuffle=shuffle,
+                    data_layout=self.data_layout,
+                    sample_shape=self.data_shapes[0],
+                    target_shape=self.data_shapes[1],
+                    seed=self.seed,
+                )
+            else:
+                h5_path = data_dir / (data_dir.name + '.h5')
+                pipe = Pipeline(
+                    batch_size=batch_size,
+                    num_threads=self.threads,
+                    device_id=self.dist.local_rank,
+                )
+                external_source = ShardedH5Iterator(
+                    h5_path,
+                    len(data_filenames),
+                    batch_size,
+                    self.dist,
+                    shard_mult,
+                )
+
+                SAMPLE_SIZE_DATA = 4 * math.prod(self.data_shapes[0])
+                # SAMPLE_SIZE_LABEL = 4 * math.prod(self.data_shapes[1])
+                with pipe:
+                    data, label = dali_fn.external_source(
+                        source=external_source,
+                        num_outputs=ShardedH5Iterator.NUM_OUTPUTS,
+                        cycle='raise',
+                    )
+
+                    feature_map = dali_fn.cast(
+                        data.gpu(),
+                        dtype=dali_types.FLOAT,
+                        bytes_per_sample_hint=SAMPLE_SIZE_DATA * batch_size,
+                    )
+                    if self.apply_log:
+                        feature_map = dali_math.log(feature_map + 1.0)
+                    else:
+                        feature_map = (
+                            feature_map
+                            / dali_fn.reductions.mean(feature_map)
+                        )
+                    if self.data_layout == "NCDHW":
+                        feature_map = dali_fn.transpose(
+                            feature_map,
+                            perm=[3, 0, 1, 2],
+                        )
+                    pipe.set_outputs(feature_map, label.gpu())
+                pipe.build()
+                return pipe
 
         return (pipeline_builder,
                 n_samples)
