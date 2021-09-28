@@ -17,12 +17,14 @@ def add_h5_argument_parser(parser: argparse.ArgumentParser):
                         help="Whether to use HDF5 data.")
 
 
-def stage_files(dist_desc: utils.DistributedEnvDesc,
-                data_dir: pathlib.Path,
-                output_dir: pathlib.Path,
-                data_filenames: List[str],
-                label_filenames: List[str],
-                shard_mult: int) -> Tuple[List[str], List[str], Callable]:
+def stage_files(
+        dist_desc: utils.DistributedEnvDesc,
+        data_dir: pathlib.Path,
+        output_dir: pathlib.Path,
+        data_filenames: List[str],
+        label_filenames: List[str],
+        shard_mult: int,
+) -> Tuple[List[str], List[str], Callable]:
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
     all_indices = np.arange(len(data_filenames))
@@ -68,14 +70,17 @@ def stage_files(dist_desc: utils.DistributedEnvDesc,
 
 
 class H5CosmoDataset(datam.CosmoDataset):
-    def _construct_pipeline(self, data_dir: pathlib.Path,
-                            batch_size: int,
-                            n_samples: int = -1,
-                            prestage: bool = True,
-                            shard: datam.ShardType = "none",
-                            shuffle: bool = False,
-                            preshuffle: bool = False,
-                            shard_mult: int = 1) -> Tuple[Pipeline, int]:
+    def _construct_pipeline(
+            self,
+            data_dir: pathlib.Path,
+            batch_size: int,
+            n_samples: int = -1,
+            prestage: bool = True,
+            shard: datam.ShardType = "none",
+            shuffle: bool = False,
+            preshuffle: bool = False,
+            shard_mult: int = 1,
+    ) -> Tuple[Pipeline, int]:
         # We need this to always be `True`.
         prestage = True
 
