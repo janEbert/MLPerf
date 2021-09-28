@@ -16,6 +16,10 @@ export SLURM_CPU_BIND_USER_SET="none"
 export USE_IME=0
 # Whether to use HDF5 data.
 export USE_H5=1
+# Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
+# to 1 has a large performance impact (either only on the staging part
+# or on the whole run depending on `APPLY_PRESTAGE`).
+export APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
 
 # How many parallel trainings to run to test weak scaling
 # (strong scaling has `INSTANCES=1`).
