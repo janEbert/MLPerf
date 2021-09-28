@@ -38,3 +38,4 @@ export DGXNNODES=32
 export DGXSYSTEM=$(basename $(readlink -f ${BASH_SOURCE[0]}) | sed 's/^config_//' | sed 's/\.sh$//' )
 export WALLTIME=02:00:00
 
+export MAX_THREADS=8
