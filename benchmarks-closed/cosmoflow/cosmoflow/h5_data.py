@@ -342,8 +342,7 @@ class H5CosmoDataset(datam.CosmoDataset):
                 pipe.build()
                 return pipe
 
-        return (pipeline_builder,
-                n_samples)
+        return (pipeline_builder, n_samples)
 
 
 # We could also rewrite this method in `data.py` to pick the dataset
