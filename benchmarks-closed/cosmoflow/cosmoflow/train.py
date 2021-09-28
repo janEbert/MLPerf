@@ -127,7 +127,7 @@ def main(args: argparse.Namespace):
     utils.logger.event(key=utils.logger.constants.SUBMISSION_ORG, value="HelmholtzAI")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_DIVISION, value="closed")
     utils.logger.event(key=utils.logger.constants.SUBMISSION_STATUS, value="onprem")
-    utils.logger.event(key=utils.logger.constants.SUBMISSION_PLATFORM, value="DGXA100")
+    utils.logger.event(key=utils.logger.constants.SUBMISSION_PLATFORM, value="A100")
 
     utils.logger.event(key="number_of_nodes", 
                        value=(dist_desc.size // dist_desc.local_size) * args.instances)
