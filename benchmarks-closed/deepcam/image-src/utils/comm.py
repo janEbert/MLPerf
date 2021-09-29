@@ -96,16 +96,19 @@ def get_local_group(batchnorm_group_size):
 
 # split comms using MPI
 def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
-    
-    print("importing MPI")
+    # print("importing MPI")
     # import MPI here:
     from mpi4py import MPI
     
-    print("done")
+    # print("done")
     # get MPI stuff
     mpi_comm = MPI.COMM_WORLD.Dup()
     comm_size = mpi_comm.Get_size()
     comm_rank = mpi_comm.Get_rank()
+
+    if instance_size == -1:
+        bn_grp = init(method, batchnorm_group_size)
+        return mpi_comm, mpi_comm, 0, bn_grp
 
     # determine the number of instances
     num_instances = comm_size // instance_size
@@ -120,7 +123,7 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     # for a successful scaffolding, we need to retrieve the IP addresses
     # for each instance_rank == 0 node:
     address = None
-    if method == "nccl-slurm": 
+    if method in "nccl-slurm":
         address = os.getenv("HOSTNAME")
         sp=address.split(".")
         if len(sp) == 2 and sp[1]=="juwels":
@@ -142,8 +145,6 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
           print(comm_rank, "can reach", hostname, '. This works!')
         else:
           print(comm_rank, "cannot reach", hostname, '. This does not work!')
-
-
     elif method == "nccl-file":
         directory=os.environ["OUTPUT_DIR"]
         master_filename = os.path.join(directory, f"instance{instance_id}.store")

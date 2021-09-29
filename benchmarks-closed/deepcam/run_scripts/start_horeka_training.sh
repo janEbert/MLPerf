@@ -10,14 +10,16 @@ SRUN_PARAMS=(
   --mpi="pmi2"
 #  --label
   --cpu-bind="none"
-  --cpus-per-task="19"
-  --bb="/mnt/odfs/${SLURM_JOB_ID}/stripe_1"
+#  --cpus-per-task="19"
+  --unbuffered
 )
 
 export SLURM_CPU_BIND_USER_SET="ldoms"
 
-export DATA_DIR_PREFIX="/hkfs/home/dataset/datasets/deepcam_npy/"
+#export DATA_DIR_PREFIX="/hkfs/home/dataset/datasets/deepcam_npy/"
+export DATA_DIR_PREFIX="/hkfs/work/workspace/scratch/qv2382-mlperf_data/hdf5s/"
 export DATA_CACHE_DIRECTORY="/mnt/odfs/${SLURM_JOB_ID}/stripe_1"
+export STAGE_DIR_PREFIX="${DATA_CACHE_DIRECTORY}"
 
 export WIREUP_METHOD="nccl-slurm-pmi"
 export SEED="0"
@@ -43,7 +45,7 @@ echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}" ${SINGULARITY_FILE} \
+  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}",/scratch ${SINGULARITY_FILE} \
     bash -c "\
       source ${CONFIG_FILE}; \
       export SLURM_CPU_BIND_USER_SET=\"none\"; \

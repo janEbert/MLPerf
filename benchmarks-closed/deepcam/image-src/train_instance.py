@@ -107,20 +107,29 @@ def main(pargs):
         full_dataset_per_node = pargs.stage_full_data_per_node
         num_instances = mpi_comm.Get_size() // mpi_instance_comm.Get_size()
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
+        h5_stage = False
         if pargs.data_format.endswith("hdf5"):
-            stage_data_handle= sdh5.stage_data_helper
+            stage_data_handle = sdh5.stage_to_NVMe_node_folders_h5  # sdh5.stage_data_helper
+            h5_stage = True
         else:
             stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
-        global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
-                                                                      comm_local_size, comm_local_rank,
-                                                                      pargs, verify = pargs.stage_verify,
-                                                                      full_dataset_per_node = full_dataset_per_node,
-                                                                      use_direct_io = pargs.stage_use_direct_io,
-                                                                      seed = pargs.seed,
-                                                                      prepare_staging = True)
+        # global_train_size, global_validation_size = stage_data_handle(
+        #     mpi_comm, num_instances, instance_id, mpi_instance_comm,
+        #     comm_local_size, comm_local_rank,
+        #     pargs, verify=pargs.stage_verify,
+        #     full_dataset_per_node=full_dataset_per_node,
+        #     use_direct_io=pargs.stage_use_direct_io,
+        #     seed=pargs.seed,
+        #     prepare_staging=True
+        # )
         # we need to adjust a few parameters or otherwise the
         # sharding and shuffling will be wrong
         root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+        if h5_stage:
+            node_num = comm_rank // 4
+            root_dir = os.path.join(root_dir, str(node_num))
+
+        print(f"full_dataset_per_node: {full_dataset_per_node}")
         if not full_dataset_per_node:
             pargs.shuffle_mode = "global"
             num_shards = comm_local_size
@@ -314,23 +323,49 @@ def main(pargs):
     else:
         ddp_net = net
 
+    # #  ================ DGC CODE ============================================================
+    # # copy the stats file here (need to create the folders for the data staging here
+    # stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+    # grank = mpi_comm.Get_rank()
+    # if grank == 0:
+    #     os.makedirs(stage_dir, exist_ok=True)
+    #
+    # node_number = grank // 4  # 4 gpus per node
+    # stage_dir = os.path.join(stage_dir, str(node_number))
+    #
+    # if grank == 0:
+    #     print("Copying stats.h5", flush=True)
+    #     with open(os.path.join(pargs.data_dir_prefix, "stats.h5"), "rb") as f:
+    #         statsfile = f.read()
+    # else:
+    #     statsfile = None
+    #
+    # # broadcast the statsfile
+    # statsfile = mpi_comm.bcast(statsfile, 0)
+    #
+    # # save it
+    # if comm_local_rank == 0:
+    #     os.makedirs(stage_dir)
+    #     with open(os.path.join(stage_dir, "stats.h5"), "wb") as f:
+    #         f.write(statsfile)
+    # #  ================ DGC CODE ============================================================
 
-    # Set up the data feeder
-    if comm_rank == 0:
-        print("Creating Dataloaders")
-    train_loader, train_size, validation_loader, validation_size = get_dataloaders(pargs, root_dir, device, seed, num_shards, shard_id)
-    
-    # log size of datasets
-    if pargs.stage_dir_prefix is not None:
-        train_size = global_train_size
-        validation_size = global_validation_size
-            
-    logger.log_event(key = "train_samples", value = train_size)
-    logger.log_event(key = "eval_samples", value = validation_size)
-    
-    num_steps_per_epoch=global_train_size//mpi_instance_comm.Get_size()//pargs.local_batch_size
-    if comm_rank == 0:
-        print("Number of steps per epoch", num_steps_per_epoch)
+    # # Set up the data feeder
+    # if comm_rank == 0:
+    #     print("Creating Dataloaders")
+    # train_loader, train_size, validation_loader, validation_size = get_dataloaders(pargs, root_dir, device, seed, num_shards, shard_id)
+    #
+    # # log size of datasets
+    # if pargs.stage_dir_prefix is not None:
+    #     train_size = global_train_size
+    #     validation_size = global_validation_size
+    #
+    # logger.log_event(key = "train_samples", value = train_size)
+    # logger.log_event(key = "eval_samples", value = validation_size)
+    #
+    # num_steps_per_epoch=global_train_size//mpi_instance_comm.Get_size()//pargs.local_batch_size
+    # if comm_rank == 0:
+    #     print("Number of steps per epoch", num_steps_per_epoch)
         
     # create trainer object
     if comm_rank == 0:
@@ -378,13 +413,22 @@ def main(pargs):
     if pargs.stage_dir_prefix is not None and not pargs.data_format.endswith("dummy"):
         logger.log_start(key = "staging_start")
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
-        global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
-                                                                      comm_local_size, comm_local_rank,
-                                                                      pargs, verify = pargs.stage_verify,
-                                                                      full_dataset_per_node = full_dataset_per_node,
-                                                                      use_direct_io = pargs.stage_use_direct_io,
-                                                                      seed = pargs.seed,
-                                                                      prepare_staging = False)
+        # global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
+        #                                                               comm_local_size, comm_local_rank,
+        #                                                               pargs, verify = pargs.stage_verify,
+        #                                                               full_dataset_per_node = full_dataset_per_node,
+        #                                                               use_direct_io = pargs.stage_use_direct_io,
+        #                                                               seed = pargs.seed,
+        #                                                               prepare_staging = True)
+        global_train_size, global_validation_size = stage_data_handle(
+            mpi_comm, num_instances, instance_id, mpi_instance_comm,
+            comm_local_size, comm_local_rank,
+            pargs, verify=pargs.stage_verify,
+            full_dataset_per_node=full_dataset_per_node,
+            use_direct_io=pargs.stage_use_direct_io,
+            seed=pargs.seed,
+            prepare_staging=True
+        )
         # we need to adjust a few parameters or otherwise the
         # sharding and shuffling will be wrong
         logger.log_end(key = "staging_stop", sync = True)
@@ -398,7 +442,26 @@ def main(pargs):
         train_loader.start_prefetching()
         #validation_loader.start_prefetching()
 
-    
+    pass
+    # Set up the data feeder
+    if comm_rank == 0:
+        print("Creating Dataloaders")
+    train_loader, train_size, validation_loader, validation_size = get_dataloaders(
+        pargs, root_dir, device, seed, num_shards, shard_id
+    )
+
+    # log size of datasets
+    if pargs.stage_dir_prefix is not None:
+        train_size = global_train_size
+        validation_size = global_validation_size
+
+    logger.log_event(key="train_samples", value=train_size)
+    logger.log_event(key="eval_samples", value=validation_size)
+
+    num_steps_per_epoch = global_train_size // mpi_instance_comm.Get_size() // pargs.local_batch_size
+    if comm_rank == 0:
+        print("Number of steps per epoch", num_steps_per_epoch)
+
     # training loop
     while True:
 
