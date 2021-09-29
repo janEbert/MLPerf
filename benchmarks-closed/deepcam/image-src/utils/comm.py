@@ -173,9 +173,9 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
                                 rank = instance_rank,
                                 world_size = instance_size,
                                 timeout=timedelta(seconds=120))
-        print("Process group successfully created for rank", rank, ". Now a global mpi barrier...")
+        print("Process group successfully created for rank", comm_rank, ". Now a global mpi barrier...")
         mpi_comm.barrier()
-        print("... barrier passed on rank ", rank, ".")
+        print("... barrier passed on rank ", comm_rank, ".")
 
         # make sure to call a barrier here in order for sharp to use the default comm:
         dist.barrier(device_ids = [get_local_rank()])
