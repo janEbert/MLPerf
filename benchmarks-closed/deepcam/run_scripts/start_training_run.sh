@@ -36,31 +36,36 @@ SBATCH_PARAMS=(
   --job-name           "deepcam-mlperf"
   --time               "${TIMELIMIT}"
 )
-mkdir -p ${OUTPUT_ROOT}
+#mkdir -p ${OUTPUT_ROOT}
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
     hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
-    hhai_dir="${PWD}/run_logs/"
-    export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
+    #hhai_dir="${PWD}/run_logs/"
+    #hhai_dir="${PWD}/../../../"
+    #results/deepcam/"
+
+    export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    #echo "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
 
     SBATCH_PARAMS+=(
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
     )
+
     if [ -z $RESERVATION ]; then
-    SBATCH_PARAMS+=(
-      --account       "hai_cosmo"
-    )
+      SBATCH_PARAMS+=(
+        --account       "hai_cosmo"
+      )
     else
-    SBATCH_PARAMS+=(
-      --account       "hai_mlperf"
-      --reservation   "mlperf"
-    )
+      SBATCH_PARAMS+=(
+        --account       "hai_mlperf"
+        --reservation   "mlperf"
+      )
     fi
 
     echo sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh

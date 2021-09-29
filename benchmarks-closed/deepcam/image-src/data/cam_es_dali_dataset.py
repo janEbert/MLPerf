@@ -325,8 +325,13 @@ class CamDaliESDataloader(object):
             self.label_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_label)))
 
         # get shapes
+        print(root_dir)
+        print(self.data_files)
         self.data_shape = np.load(self.data_files[0]).shape
         self.label_shape = np.load(self.label_files[0]).shape
+
+        # print(f"self.data_shape: {self.data_shape}")
+        # print(f"self.label_shape: {self.label_shape}")
 
         # open statsfile
         with h5.File(statsfile, "r") as f:

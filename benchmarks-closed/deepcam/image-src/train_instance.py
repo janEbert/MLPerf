@@ -70,6 +70,8 @@ import torch.cuda.amp as amp
 #comm wrapper
 from utils import comm
 
+import torch.distributed as dist
+
 #main function
 def main(pargs):
 
@@ -109,7 +111,7 @@ def main(pargs):
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
         h5_stage = False
         if pargs.data_format.endswith("hdf5"):
-            stage_data_handle = sdh5.stage_to_NVMe_node_folders_h5  # sdh5.stage_data_helper
+            stage_data_handle = sdh5.stage_data_helper  # sdh5.stage_to_NVMe_node_folders_h5
             h5_stage = True
         else:
             stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
@@ -125,11 +127,11 @@ def main(pargs):
         # we need to adjust a few parameters or otherwise the
         # sharding and shuffling will be wrong
         root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
-        if h5_stage:
-            node_num = comm_rank // 4
-            root_dir = os.path.join(root_dir, str(node_num))
+        # if h5_stage:
+        #     node_num = mpi_comm.Get_rank() // 4
+        #     root_dir = os.path.join(root_dir, str(node_num))
 
-        print(f"full_dataset_per_node: {full_dataset_per_node}")
+        print(f"root_dir: {root_dir}")
         if not full_dataset_per_node:
             pargs.shuffle_mode = "global"
             num_shards = comm_local_size
@@ -404,8 +406,9 @@ def main(pargs):
 
     # perform a global barrier across all nodes
     mpi_comm.Barrier()
+    # dist.barrier()
     logger.log_end(key = "init_stop", sync = True)
-    
+
     # start trining
     logger.log_start(key = "run_start", sync = True)
 

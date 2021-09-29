@@ -137,7 +137,7 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         port = "29500"
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
-        wireup_store=None
+        wireup_store = None
     elif method == "nccl-file":
         directory=os.environ["OUTPUT_DIR"]
         master_filename = os.path.join(directory, f"instance{instance_id}.store")
@@ -174,9 +174,10 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
                                 rank = instance_rank,
                                 world_size = instance_size,
                                 timeout=timedelta(seconds=120))
-        print("Process group successfully created for rank", rank, ". Now a global mpi barrier...")
+
+        print("Process group successfully created for rank", comm_rank, ". Now a global mpi barrier...")
         mpi_comm.barrier()
-        print("... barrier passed on rank ", rank, ".")
+        print("... barrier passed on rank ", comm_rank, ".")
 
         # make sure to call a barrier here in order for sharp to use the default comm:
         dist.barrier(device_ids = [get_local_rank()])
