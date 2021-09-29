@@ -2,12 +2,12 @@
 
 # hyperparameters
 export LOCAL_BATCH_SIZE=1
-export START_LR=0.0055
+export START_LR=0.0062
 export OPTIMIZER="LAMB"
 export LR_SCHEDULE_TYPE="multistep"
-export LR_MILESTONES="800"
+export LR_MILESTONES="600"
 export LR_DECAY_RATE="0.1"
-export LR_WARMUP_STEPS=400
+export LR_WARMUP_STEPS=800
 export LR_WARMUP_FACTOR=1.
 export WEIGHT_DECAY=0.01
 export BATCHNORM_GROUP_SIZE=2

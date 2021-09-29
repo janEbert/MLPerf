@@ -38,6 +38,7 @@ SBATCH_PARAMS=(
 )
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
+export STAGING_AREA=/staging_area
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
@@ -49,7 +50,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-cosmo-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-cosmo-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "jucha"
+      --account       "atmlaml"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 
