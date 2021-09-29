@@ -77,7 +77,7 @@ echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-    --bind "${DATA_DIR_PREFIX}":/data,"${RESULTS_ROOT}":/results,${SCRIPT_DIR},${OUTPUT_ROOT} \
+    --bind "${DATA_DIR_PREFIX}":/data,/tmp:"${STAGING_AREA}","${RESULTS_ROOT}":/results,${SCRIPT_DIR},${OUTPUT_ROOT} \
     ${SINGULARITY_FILE} \
     bash -c "\
       PMIX_SECURITY_MODE=native; \

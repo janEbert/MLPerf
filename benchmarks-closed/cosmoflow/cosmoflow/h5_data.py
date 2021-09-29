@@ -299,7 +299,7 @@ class H5CosmoDataset(datam.CosmoDataset):
 
             if prestage:
                 output_path = \
-                    pathlib.Path("/tmp", "dataset") / data_dir.parts[-1]
+                    pathlib.Path("/staging_area", "dataset") / data_dir.parts[-1]
                 data_filenames_, label_filenames_ = stage_files(
                     self.dist,
                     data_dir,

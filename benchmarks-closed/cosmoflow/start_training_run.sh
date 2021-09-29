@@ -38,6 +38,7 @@ SBATCH_PARAMS=(
 )
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
+export STAGING_AREA=/staging_area
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
