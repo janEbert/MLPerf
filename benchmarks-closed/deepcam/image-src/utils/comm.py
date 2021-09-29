@@ -24,6 +24,7 @@ import socket
 import torch
 import torch.distributed as dist
 from datetime import timedelta
+import time
 
 
 def get_rank():
@@ -137,14 +138,6 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
         wireup_store=None
-        hostname = address #example
-        response = os.system("bash -c \"ping -c 1 " + hostname+ "\"")
-        
-        #and then check the response...
-        if response == 0:
-          print(comm_rank, "can reach", hostname, '. This works!')
-        else:
-          print(comm_rank, "cannot reach", hostname, '. This does not work!')
     elif method == "nccl-file":
         directory=os.environ["OUTPUT_DIR"]
         master_filename = os.path.join(directory, f"instance{instance_id}.store")
@@ -170,17 +163,20 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     
     # do the dist init (if we have non trivial instances)
     if instance_size > 1:
-        if verbose and instance_rank == 0:
-            print(f"Starting NCCL wireup for instance {instance_id}", flush=True)
-        # dangerous but necessary
-        os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
-        # initialize group
+        #This was here but should not be here: os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
+        #path=os.path.join("/p/scratch/jb_benchmark/deepCam2/stores", os.environ["SLURM_JOBID"])
+        #                        init_method="file://"+path,
+        print("creating process group")
+        if instance_rank != 0:
+            time.sleep(2+10*instance_rank/instance_size)
         dist.init_process_group(backend = "nccl",
                                 store = wireup_store,
                                 rank = instance_rank,
                                 world_size = instance_size,
                                 timeout=timedelta(seconds=120))
-        print("done")
+        print("Process group successfully created for rank", rank, ". Now a global mpi barrier...")
+        mpi_comm.barrier()
+        print("... barrier passed on rank ", rank, ".")
 
         # make sure to call a barrier here in order for sharp to use the default comm:
         dist.barrier(device_ids = [get_local_rank()])
