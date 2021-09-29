@@ -1,3 +1,6 @@
+# Use with `jube run bench.yaml`
+# show results with `jube result -a run`
+
 name: MLPerf
 outpath: run
 comment: A jobsystem example
