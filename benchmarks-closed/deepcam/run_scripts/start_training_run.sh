@@ -50,8 +50,15 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "training2105"
     )
+    if [ -z $RESERVATION ]; then
+      --account       "hai_mlperf"
+      --reservation   "mlperf"
+    else
+      --account       "hai_cosmo"
+    fi
+
+    echo sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 
 elif [ "$TRAINING_SYSTEM" == "horeka" ]
