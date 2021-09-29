@@ -23,7 +23,7 @@ export APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
 
 # How many parallel trainings to run to test weak scaling
 # (strong scaling has `INSTANCES=1`).
-export INSTANCES=1
+export INSTANCES=${INSTANCES:-1}
 
 # Only apply prestaging when we
 # 1. have only one parallel training run
@@ -56,7 +56,7 @@ fi
 hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
 base_dir="${hhai_dir}benchmarks-closed/cosmoflow/"
 
-export RESULTS_ROOT="/p/scratch/jb_benchmark/cosmoflow/results"
+export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/jb_benchmark/cosmoflow/results"}
 export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
 
 export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
