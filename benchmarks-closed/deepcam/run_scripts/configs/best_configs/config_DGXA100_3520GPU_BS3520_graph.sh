@@ -20,7 +20,7 @@ export PRECISION_MODE="amp"
 export LOCAL_VALIDATION_BATCH_SIZE=8
 
 # output parameters
-export OUTPUT_ROOT=/results/best
+#export OUTPUT_ROOT=/results/best
 
 # auxiliary parameters
 export LOGGING_FREQUENCY=10
