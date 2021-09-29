@@ -52,10 +52,14 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
     )
     if [ -z $RESERVATION ]; then
+    SBATCH_PARAMS+=(
+      --account       "hai_cosmo"
+    )
+    else
+    SBATCH_PARAMS+=(
       --account       "hai_mlperf"
       --reservation   "mlperf"
-    else
-      --account       "hai_cosmo"
+    )
     fi
 
     echo sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
