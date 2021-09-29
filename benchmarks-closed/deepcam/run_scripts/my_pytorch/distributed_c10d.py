@@ -8,8 +8,6 @@ from datetime import timedelta
 from typing import Dict, Optional, Tuple, Union
 import numpy as np
 
-print("kessel was here")
-
 import torch
 from torch._C._distributed_c10d import (
     AllgatherOptions,
@@ -558,19 +556,15 @@ def init_process_group(
     else:
         # backward compatible API
         if store is None:
-            print(rank, "creating store 1")
             rendezvous_iterator = rendezvous(
                 init_method, rank, world_size, timeout=timeout
             )
-            print(rank, "creating store 2")
             store, rank, world_size = next(rendezvous_iterator)
             store.set_timeout(timeout)
 
             # Use a PrefixStore to avoid accidental overrides of keys used by
             # different systems (e.g. RPC) in case the store is multi-tenant.
-            print(rank, "creating store 3")
             store = PrefixStore("default_pg", store)
-            print(rank, "creating store 4")
 
         default_pg = _new_process_group_helper(
             world_size,
@@ -583,17 +577,14 @@ def init_process_group(
             timeout=timeout,
         )
         _update_default_pg(default_pg)
-        print(rank, "process group helper finished")
 
     _pg_group_ranks[GroupMember.WORLD] = {i: i for i in range(GroupMember.WORLD.size())}  # type: ignore[attr-defined, index]
     _backend = _pg_map[GroupMember.WORLD][0]  # type: ignore[index]
     _default_pg_init_method = init_method
-    print(rank, "whereami")
 
     # barrier at the end to ensure that once we return from this method, all
     # process groups including global variables are updated correctly on all
     # ranks.
-    print(rank, "before barrier")
     if backend == Backend.MPI:
         # MPI backend doesn't use store.
         barrier()
@@ -607,7 +598,6 @@ def init_process_group(
         # Set sequence numbers for gloo and nccl process groups.
         if get_backend(default_pg) in [Backend.GLOO, Backend.NCCL]:
             default_pg._set_sequence_number_for_group()
-    print(rank, "after barrier")
 
 
 def _new_process_group_helper(
