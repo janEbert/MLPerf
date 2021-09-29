@@ -197,6 +197,7 @@ class H5CosmoDataset(datam.CosmoDataset):
             pipeline = pipeline_builder()
             iterator = dali_mxnet.DALIGluonIterator(
                 pipeline,
+                reader_name='data_reader' if prestage else None,
                 last_batch_policy=LastBatchPolicy.PARTIAL,
             )
             return iterator
