@@ -36,6 +36,7 @@ SBATCH_PARAMS=(
   --job-name           "deepcam-mlperf"
   --time               "${TIMELIMIT}"
 )
+mkdir -p ${OUTPUT_ROOT}
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
