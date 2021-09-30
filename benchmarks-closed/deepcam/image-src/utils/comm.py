@@ -172,7 +172,7 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
                                 store = wireup_store,
                                 rank = instance_rank,
                                 world_size = instance_size,
-                                timeout=timedelta(seconds=120))
+                                timeout=timedelta(seconds=240))
         print("Process group successfully created for rank", comm_rank, ". Now a global mpi barrier...")
         mpi_comm.barrier()
         print("... barrier passed on rank ", comm_rank, ".")
