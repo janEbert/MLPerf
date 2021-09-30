@@ -48,9 +48,11 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
     export OUTPUT_DIR="${OUTPUT_ROOT}"
 
     SBATCH_PARAMS+=(
-      --partition     "booster"
+      --partition     "largebooster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
+      --cpu-freq="high"
+      --gpu-freq="high"
     )
     if [ -z $RESERVATION ]; then
     SBATCH_PARAMS+=(
