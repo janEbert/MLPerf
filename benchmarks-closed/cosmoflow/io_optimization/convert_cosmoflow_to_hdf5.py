@@ -58,8 +58,12 @@ with tarfile.open(root_file, 'r') as tar_f:
     start_entries=np.cumsum([len(x) for x in data_files_shards])
     start_entries=([0] + list(start_entries))[:-1]
 
-    data_shape=load_numpy(tar_f, data_files[0]).shape
-    label_shape=load_numpy(tar_f, label_files[0]).shape
+    first_data = load_numpy(tar_f, data_files[0])
+    data_shape = first_data.shape
+    data_dtype = first_data.dtype
+    first_label = load_numpy(tar_f, label_files[0])
+    label_shape = first_label.shape
+    label_dtype = first_label.dtype
     all_data_shape=(len(data_files_filtered), *data_shape)
     all_label_shape=(len(data_files_filtered), *label_shape)
 
@@ -72,9 +76,9 @@ with tarfile.open(root_file, 'r') as tar_f:
         print("creating file")
         fi = h5py.File(tfname, 'w', driver='mpio', comm=MPI.COMM_WORLD)
         print("creating dset")
-        dset = fi.create_dataset('data', all_data_shape, dtype='f')
+        dset = fi.create_dataset('data', all_data_shape, dtype=data_dtype)
         print("creating lset")
-        lset = fi.create_dataset('label', all_label_shape, dtype='f')
+        lset = fi.create_dataset('label', all_label_shape, dtype=label_dtype)
 
         start=time.time()
         for i, (f, l) in enumerate(zip(data_files, label_files)):
@@ -100,8 +104,8 @@ with tarfile.open(root_file, 'r') as tar_f:
     if len(np.unique(all_data_files)) != len(all_data_files):
         print("There is an error with the file distribution")
 
-    hdf5file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}_all.h5"
-    files_file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}_all.h5.files"
+    hdf5file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}.h5"
+    files_file=f"/p/scratch/jb_benchmark/cosmoflow/{data_subset}.h5.files"
     if MPI.COMM_WORLD.rank == 0:
         with open(files_file, "w") as g:
             g.write("\n".join(all_data_files) + '\n')

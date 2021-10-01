@@ -36,6 +36,7 @@ NUM_TRAINING_SAMPLES=${NUM_TRAINING_SAMPLES:-"-1"}
 NUM_VALIDATION_SAMPLES=${NUM_VALIDATION_SAMPLES:-"-1"}
 DALI_THREADS=${DALI_THREADS:-6}
 INSTANCES=${INSTANCES:-1}
+USE_H5=${USE_H5:-"1"}
 
 
 PROFILE=${PROFILE:-0}
@@ -124,6 +125,12 @@ fi
 if [[ ${APPLY_PRESTAGE} -ge 1 ]]; then
         PARAMS+=(
             --prestage
+        )
+fi
+
+if [[ ${USE_H5} -ge 1 ]]; then
+        PARAMS+=(
+            --use_h5
         )
 fi
 

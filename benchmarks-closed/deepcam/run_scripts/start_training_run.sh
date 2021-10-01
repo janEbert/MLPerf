@@ -36,6 +36,7 @@ SBATCH_PARAMS=(
   --job-name           "deepcam-mlperf"
   --time               "${TIMELIMIT}"
 )
+mkdir -p ${OUTPUT_ROOT}
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
@@ -50,8 +51,19 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "training2105"
     )
+    if [ -z $RESERVATION ]; then
+    SBATCH_PARAMS+=(
+      --account       "hai_cosmo"
+    )
+    else
+    SBATCH_PARAMS+=(
+      --account       "hai_mlperf"
+      --reservation   "mlperf"
+    )
+    fi
+
+    echo sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 
 elif [ "$TRAINING_SYSTEM" == "horeka" ]
