@@ -162,9 +162,9 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     
     # do the dist init (if we have non trivial instances)
     if instance_size > 1:
-        #This was here but should not be here: os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         #path=os.path.join("/p/scratch/jb_benchmark/deepCam2/stores", os.environ["SLURM_JOBID"])
         #                        init_method="file://"+path,
+        os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         print("creating process group")
         if instance_rank != 0:
             time.sleep(2+10*instance_rank/instance_size)
@@ -172,7 +172,7 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
                                 store = wireup_store,
                                 rank = instance_rank,
                                 world_size = instance_size,
-                                timeout=timedelta(seconds=120))
+                                timeout=timedelta(seconds=240))
         print("Process group successfully created for rank", comm_rank, ". Now a global mpi barrier...")
         mpi_comm.barrier()
         print("... barrier passed on rank ", comm_rank, ".")

@@ -6,7 +6,6 @@ ml purge
 SRUN_PARAMS=(
   --mpi            pspmix
   --cpu-bind       none
-  --unbuffered
   #--label
 )
 
@@ -47,6 +46,10 @@ cat "${CONFIG_FILE}"
 export SINGULARITY_FILE
 export UCX_MEMTYPE_CACHE=0
 export NCCL_IB_TIMEOUT=20
+export SHARP_COLL_LOG_LEVEL=3
+export OMPI_MCA_coll_hcoll_enable=0
+export NCCL_SOCKET_IFNAME="ib0"
+export NCCL_COLLNET_ENABLE=0
 
 srun "${SRUN_PARAMS[@]}" bash -c '
     MASTER=$(echo "$SLURM_STEP_NODELIST" | cut -d "," -f 1);
@@ -55,7 +58,8 @@ srun "${SRUN_PARAMS[@]}" bash -c '
     bash -c "\
       export CUDA_VISIBLE_DEVICES="0,1,2,3";  \
       export PMIX_SECURITY_MODE="native";
-      export NCCL_DEBUG=WARN; \
+      export NCCL_DEBUG=INFO; \
+      export NCCL_DEBUG_SUBSYS=INIT,GRAPH ; \
       source ${CONFIG_FILE}; \
       bash run_and_time.sh"'
       
@@ -63,4 +67,4 @@ srun "${SRUN_PARAMS[@]}" bash -c '
     #export MASTER="$(scontrol show hostnames  $SLURM_STEP_NODELIST| head -n 1)i.juwels";
     #echo "pinging $MASTER from $HOSTNAME";
     #ping -c 1 $MASTER; 
-      #export NCCL_DEBUG_SUBSYS=ALL ; \
+      #export NCCL_DEBUG_SUBSYS=INIT,GRAPH ; \

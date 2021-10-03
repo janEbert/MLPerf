@@ -35,7 +35,7 @@ from utils import comm
 
 class mlperf_logger(object):
 
-    def __init__(self, filename, benchmark, organization, machine_scale):
+    def __init__(self, filename, benchmark, organization, platform="PLATFORM_PLACEHOLDER"):
         self.mllogger = mllog.get_mllogger()
         self.comm_rank = comm.get_rank()
         self.comm_local_rank = comm.get_local_rank()
@@ -65,8 +65,8 @@ class mlperf_logger(object):
                        value = 'onprem')
 
         self.log_event(key = constants.SUBMISSION_PLATFORM,
-                       value = f'{machine_scale}xSUBMISSION_PLATFORM_PLACEHOLDER')
-        
+                       value = platform)
+
 
     def log_start(self, *args, **kwargs):
         self._log_print(self.mllogger.start, *args, **kwargs)
