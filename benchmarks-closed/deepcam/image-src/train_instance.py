@@ -77,7 +77,7 @@ def main(pargs):
 
     # this should be global
     global have_wandb
-    print("starting main")
+    # print("starting main")
 
     #init distributed training
     mpi_comm, mpi_instance_comm, instance_id, comm_local_group = comm.init_split(pargs.wireup_method,
@@ -112,6 +112,8 @@ def main(pargs):
         h5_stage = False
         if pargs.data_format.endswith("hdf5"):
             stage_data_handle = sdh5.stage_data_helper  # sdh5.stage_to_NVMe_node_folders_h5
+            # stage_data_handle = sdh5.stage_to_NVMe_node_folders_h5
+            # stage_data_handle = sdh5.stage_to_NVMe_all_shared_h5
             h5_stage = True
         else:
             stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
@@ -126,12 +128,13 @@ def main(pargs):
         # )
         # we need to adjust a few parameters or otherwise the
         # sharding and shuffling will be wrong
-        root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+        root_dir = pargs.stage_dir_prefix
+        # root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
         # if h5_stage:
         #     node_num = mpi_comm.Get_rank() // 4
         #     root_dir = os.path.join(root_dir, str(node_num))
+            # print(f"root_dir: {root_dir}, expected: /NVMe/instance{instance_id}/{node_num}/")
 
-        print(f"root_dir: {root_dir}")
         if not full_dataset_per_node:
             pargs.shuffle_mode = "global"
             num_shards = comm_local_size

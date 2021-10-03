@@ -325,8 +325,8 @@ class CamDaliESDataloader(object):
             self.label_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_label)))
 
         # get shapes
-        print(root_dir)
-        print(self.data_files)
+        # print(root_dir)
+        # print(self.data_files)
         self.data_shape = np.load(self.data_files[0]).shape
         self.label_shape = np.load(self.label_files[0]).shape
 
@@ -357,7 +357,8 @@ class CamDaliESDataloader(object):
 
         # create ES
         self.extsource = NumpyExternalSource(self.data_files, self.label_files, self.batchsize,
-                                             last_batch_mode = "partial" if self.is_validation else "drop",
+                                             last_batch_mode = "drop",
+                                             # "partial" if self.is_validation else "drop",
                                              num_shards = self.num_shards, shard_id = self.shard_id,
                                              oversampling_factor = self.oversampling_factor, shuffle = self.shuffle,
                                              cache_data = self.cache_data, seed = self.seed)

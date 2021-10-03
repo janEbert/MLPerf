@@ -85,6 +85,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
       --cpu-freq="high"
       --gpu-freq="high"
       --constraint="BEEOND"
+      -A "hk-project-test-mlperf"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else

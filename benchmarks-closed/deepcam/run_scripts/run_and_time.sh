@@ -4,6 +4,11 @@
 # to use the script:
 #   run_and_time.sh
 
+#export OMPI_MCA_btl="^openib" #To prevent deadlock between Horovd and NCCL at 96 nodes
+export NCCL_SOCKET_IFNAME="ib0"
+export OMPI_MCA_coll_hcoll_enable=0
+export NCCL_SOCKET_IFNAME="ib0"
+export NCCL_COLLNET_ENABLE=0
 # start timing
 start=$(date +%s)
 start_fmt=$(date +%Y-%m-%d\ %r)

@@ -21,6 +21,7 @@
 
 import os
 import socket
+import subprocess
 import torch
 import torch.distributed as dist
 from datetime import timedelta
@@ -117,14 +118,15 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     # comm_rank = instance_rank +  instance_id * instance_size
     instance_id = comm_rank // instance_size
     instance_rank = comm_rank % instance_size
-    
+
     # split the communicator
     mpi_instance_comm = mpi_comm.Split(color=instance_id, key=instance_rank)
-    
+    # print(f"{comm_rank}: mpi_instance_comm: {mpi_instance_comm}, id: {instance_id}")
+
     # for a successful scaffolding, we need to retrieve the IP addresses
     # for each instance_rank == 0 node:
     address = None
-    if method in "nccl-slurm":
+    if method in ["nccl-slurm"]:
         address = os.getenv("HOSTNAME")
         sp=address.split(".")
         if len(sp) == 2 and sp[1]=="juwels":
@@ -132,6 +134,39 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         #bacst that into to everybody
         address = mpi_instance_comm.bcast(address, root=0)
         print("MASTER_ADDR is set to ", address)
+
+        # save env vars
+        port = "29500"
+        os.environ["MASTER_ADDR"] = address
+        os.environ["MASTER_PORT"] = port
+        wireup_store = None
+    elif method == "nccl-slurm-pmi":  # horeka methods
+        address = socket.gethostname()
+        # hostname = socket.gethostbyname(hostname)
+        # address = os.getenv("HOSTNAME")
+        # print()
+        # bash_cmd = "ifconfig ib0 | grep 'inet' | cut -d: -f2 | awk '{print $2}'"
+        #
+        # bash_cmd = "cat /etc/sysconfig/network-scripts/ifcfg-ib0 | grep IPADDR"
+        #
+        # # process = subprocess.Popen(bash_cmd, stdout=subprocess.PIPE)
+        # # hostname, _ = process.communicate()
+        # r1 = subprocess.run([bash_cmd], shell=True, capture_output=True)
+        # address = r1.stdout.decode()[68:-2]
+
+        # print(f"{os.getenv('HOSTNAME')}, {os.getenv('SLURM_TOPOLOGY_ADDR')}, {address}")
+        # sp = address.split(".")
+        # if len(sp) == 2 and sp[1] == "juwels":
+        #     address = sp[0] + "i." + "juwels"
+        # bacst that into to everybody
+        # print(f"{comm_rank}, {instance_size}, address", address)
+        if instance_rank != 0:
+            address = ""
+
+        address = mpi_instance_comm.bcast(address, root=0)
+        # if instance_id == 1:
+        print("MASTER_ADDR is set to ", address, "instance:", instance_id)
+
 
         # save env vars
         port = "29500"
@@ -166,14 +201,16 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         #This was here but should not be here: os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         #path=os.path.join("/p/scratch/jb_benchmark/deepCam2/stores", os.environ["SLURM_JOBID"])
         #                        init_method="file://"+path,
+        os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         print("creating process group")
         if instance_rank != 0:
-            time.sleep(2+10*instance_rank/instance_size)
+            time.sleep(2 + 10 * instance_rank / instance_size)
+
         dist.init_process_group(backend = "nccl",
                                 store = wireup_store,
                                 rank = instance_rank,
                                 world_size = instance_size,
-                                timeout=timedelta(seconds=120))
+                                timeout=timedelta(seconds=240))
 
         print("Process group successfully created for rank", comm_rank, ". Now a global mpi barrier...")
         mpi_comm.barrier()
