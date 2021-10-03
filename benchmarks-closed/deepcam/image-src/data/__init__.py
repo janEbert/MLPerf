@@ -79,28 +79,27 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
         # train_labels = os.path.join(root_dir, f'label_train.txt')
             
         train_dir = os.path.join(root_dir, "train")
-        train_loader = dl_handle(
-            train_dir,
-            data_filter,
-            label_filter,
-            os.path.join(pargs.data_dir_prefix, "stats.h5"),
-            pargs.local_batch_size,
-            file_list_data = "files_data.lst",  # if data_list is None else data_list,
-            file_list_label = "files_label.lst",  # if label_list is None else label_list,
-            num_threads = pargs.max_inter_threads,
-            device = device,
-            num_shards = comm_size,
-            shard_id = comm_rank,
-            shuffle_mode = pargs.shuffle_mode,
-            oversampling_factor = oversampling_factor,
-            is_validation = False,
-            lazy_init = True,
-            transpose = not pargs.enable_nhwc,
-            augmentations = pargs.data_augmentations,
-            read_gpu = pargs.enable_gds,
-            use_mmap = False,
-            seed = seed, **kwargs
-        )
+
+        train_loader = dl_handle(train_dir,
+                                 data_filter,
+                                 label_filter,
+                                 os.path.join(pargs.data_dir_prefix, "stats.h5"),
+                                 pargs.local_batch_size,
+                                 file_list_data = "files_data.lst",
+                                 file_list_label = "files_label.lst",
+                                 num_threads = pargs.max_inter_threads,
+                                 device = device,
+                                 num_shards = comm_size,
+                                 shard_id = comm_rank,
+                                 shuffle_mode = pargs.shuffle_mode,
+                                 oversampling_factor = oversampling_factor,
+                                 is_validation = False,
+                                 lazy_init = True,
+                                 transpose = not pargs.enable_nhwc,
+                                 augmentations = pargs.data_augmentations,
+                                 read_gpu = pargs.enable_gds,
+                                 use_mmap = False,
+                                 seed = seed, **kwargs)
         train_size = train_loader.global_size
     
     # validation: we only want to shuffle the set if we are cutting off validation after a certain number of steps

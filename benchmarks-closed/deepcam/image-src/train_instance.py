@@ -94,9 +94,7 @@ def main(pargs):
     pargs.logging_frequency = max([pargs.logging_frequency, 1])
     # log_file = os.path.normpath(os.path.join(pargs.output_dir, pargs.run_tag + f"_{instance_id+1}_{pargs.experiment_id}.log"))
     log_file = os.path.normpath(os.path.join(pargs.output_dir, pargs.run_tag + f"_{instance_id}.log"))
-    logger = mll.mlperf_logger(
-        log_file, "deepcam", "HelmholtzAI", mpi_comm.Get_size() // comm_local_size
-    )
+    logger = mll.mlperf_logger(log_file, "deepcam", "HelmholtzAI", "HoreKa")
     logger.log_start(key = "init_start", sync = True)
     logger.log_event(key = "cache_clear")
     
@@ -129,11 +127,12 @@ def main(pargs):
         # we need to adjust a few parameters or otherwise the
         # sharding and shuffling will be wrong
         root_dir = pargs.stage_dir_prefix
-        # root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+        root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
         # if h5_stage:
         #     node_num = mpi_comm.Get_rank() // 4
         #     root_dir = os.path.join(root_dir, str(node_num))
-            # print(f"root_dir: {root_dir}, expected: /NVMe/instance{instance_id}/{node_num}/")
+
+        print(f"root_dir: {root_dir}")
 
         if not full_dataset_per_node:
             pargs.shuffle_mode = "global"
@@ -327,33 +326,6 @@ def main(pargs):
                           gradient_as_bucket_view=True)
     else:
         ddp_net = net
-
-    # #  ================ DGC CODE ============================================================
-    # # copy the stats file here (need to create the folders for the data staging here
-    # stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
-    # grank = mpi_comm.Get_rank()
-    # if grank == 0:
-    #     os.makedirs(stage_dir, exist_ok=True)
-    #
-    # node_number = grank // 4  # 4 gpus per node
-    # stage_dir = os.path.join(stage_dir, str(node_number))
-    #
-    # if grank == 0:
-    #     print("Copying stats.h5", flush=True)
-    #     with open(os.path.join(pargs.data_dir_prefix, "stats.h5"), "rb") as f:
-    #         statsfile = f.read()
-    # else:
-    #     statsfile = None
-    #
-    # # broadcast the statsfile
-    # statsfile = mpi_comm.bcast(statsfile, 0)
-    #
-    # # save it
-    # if comm_local_rank == 0:
-    #     os.makedirs(stage_dir)
-    #     with open(os.path.join(stage_dir, "stats.h5"), "wb") as f:
-    #         f.write(statsfile)
-    # #  ================ DGC CODE ============================================================
 
     # # Set up the data feeder
     # if comm_rank == 0:
