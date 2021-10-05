@@ -36,7 +36,6 @@ SBATCH_PARAMS=(
   --job-name           "deepcam-mlperf"
   --time               "${TIMELIMIT}"
 )
-#mkdir -p ${OUTPUT_ROOT}
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
@@ -45,11 +44,9 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
     hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
     #hhai_dir="${PWD}/run_logs/"
     #hhai_dir="${PWD}/../../../"
-    #results/deepcam/"
 
     export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
-    #echo "${OUTPUT_DIR}slurm-deepcam-JB-N-${SLURM_NNODES}-%j.out"
 
     SBATCH_PARAMS+=(
       --partition     "largebooster"

@@ -107,7 +107,6 @@ def main(pargs):
         full_dataset_per_node = pargs.stage_full_data_per_node
         num_instances = mpi_comm.Get_size() // mpi_instance_comm.Get_size()
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
-        h5_stage = False
         if pargs.data_format.endswith("hdf5"):
             if pargs.data_staging_method == "instance":
                 stage_data_handle = sdh5.stage_data_helper  # sdh5.stage_to_NVMe_node_folders_h5
@@ -122,9 +121,6 @@ def main(pargs):
                 root_dir = pargs.stage_dir_prefix
             else:
                 raise ValueError(f"invalid data staging method: {pargs.data_staging_method}")
-            # sdh5.touch_files_in_stage_dir(
-            #     global_comm=mpi_comm, instance_comm=mpi_instance_comm, local_size=comm_local_size,
-            #     local_rank=comm_local_rank, pargs=pargs)
         else:
             stage_data_handle = sda.stage_archived_data_helper if pargs.stage_archives else sd.stage_data_helper
         global_train_size, global_validation_size = stage_data_handle(
@@ -137,15 +133,7 @@ def main(pargs):
             prepare_staging=True,
             touch=True
         )
-        # we need to adjust a few parameters or otherwise the
-        # sharding and shuffling will be wrong
-        # root_dir = pargs.stage_dir_prefix
-        # root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
-        # if h5_stage:
-        #     node_num = mpi_comm.Get_rank() // 4
-        #     root_dir = os.path.join(root_dir, str(node_num))
-
-        print(f"root_dir: {root_dir}")
+        # print(f"data root_dir: {root_dir}")
 
         if not full_dataset_per_node:
             pargs.shuffle_mode = "global"
@@ -432,26 +420,6 @@ def main(pargs):
     elif (pargs.data_format in ["dali-es", "dali-es-disk"]):
         train_loader.start_prefetching()
         #validation_loader.start_prefetching()
-
-    pass
-    # # Set up the data feeder
-    # if comm_rank == 0:
-    #     print("Creating Dataloaders")
-    # train_loader, train_size, validation_loader, validation_size = get_dataloaders(
-    #     pargs, root_dir, device, seed, num_shards, shard_id
-    # )
-    #
-    # # log size of datasets
-    # if pargs.stage_dir_prefix is not None:
-    #     train_size = global_train_size
-    #     validation_size = global_validation_size
-    #
-    # logger.log_event(key="train_samples", value=train_size)
-    # logger.log_event(key="eval_samples", value=validation_size)
-    #
-    # num_steps_per_epoch = global_train_size // mpi_instance_comm.Get_size() // pargs.local_batch_size
-    # if comm_rank == 0:
-    #     print("Number of steps per epoch", num_steps_per_epoch)
 
     # training loop
     while True:

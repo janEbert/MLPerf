@@ -138,7 +138,7 @@ if [ ! -z "${TRAINING_INSTANCE_SIZE}" ]; then
 	    --stage_num_workers ${STAGE_NUM_WORKERS:-1}
 	    --stage_batch_size ${STAGE_BATCH_SIZE:--1}
 	    --stage_mode ${STAGE_MODE:-"node"}
-	    --data_staging_method ${STAGE_METHOD:-"nodes"}
+	    --data_staging_method ${STAGE_METHOD:-"instance"}
 	)
 	# do we need to verify the staging results
 	if [ "${STAGE_VERIFY:-0}" -eq 1 ]; then
