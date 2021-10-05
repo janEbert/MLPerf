@@ -21,12 +21,14 @@ export LOCAL_VALIDATION_BATCH_SIZE=8
 # output parameters
 #export OUTPUT_ROOT=/results/best
 
+export TRAINING_INSTANCE_SIZE=$((128*4))
+
 # auxiliary parameters
 export LOGGING_FREQUENCY=10
 
 # misc args
-export ADDITIONAL_ARGS="--enable_jit --disable_comm_overlap --enable_graph"
-
+export ADDITIONAL_ARGS="--enable_jit --enable_graph"
+#--disable_comm_overlap
 # system parameters
 #export DGXNGPU=8
 #export DGXNNODES=64

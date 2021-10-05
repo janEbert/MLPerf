@@ -36,15 +36,16 @@ SBATCH_PARAMS=(
   --job-name           "deepcam-mlperf"
   --time               "${TIMELIMIT}"
 )
-mkdir -p ${OUTPUT_ROOT}
 
 export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
     hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
-    hhai_dir="${PWD}/run_logs/"
-    export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
+    #hhai_dir="${PWD}/run_logs/"
+    #hhai_dir="${PWD}/../../../"
+
+    export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
 
     SBATCH_PARAMS+=(
@@ -54,15 +55,16 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --cpu-freq="high"
       --gpu-freq="high"
     )
+
     if [ -z $RESERVATION ]; then
-    SBATCH_PARAMS+=(
-      --account       "hai_cosmo"
-    )
+      SBATCH_PARAMS+=(
+        --account       "hai_cosmo"
+      )
     else
-    SBATCH_PARAMS+=(
-      --account       "hai_mlperf"
-      --reservation   "mlperf"
-    )
+      SBATCH_PARAMS+=(
+        --account       "hai_mlperf"
+        --reservation   "mlperf"
+      )
     fi
 
     echo sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
@@ -78,10 +80,11 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
       --partition     "accelerated"
       --output        "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.err"
-      --exclude       "hkn[0518,0519,0533,0614,0811]"
+      --exclude       "hkn[0518,0519,0533,0614,0625,0811]"
       --cpu-freq="high"
       --gpu-freq="high"
       --constraint="BEEOND"
+      -A "hk-project-test-mlperf"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else

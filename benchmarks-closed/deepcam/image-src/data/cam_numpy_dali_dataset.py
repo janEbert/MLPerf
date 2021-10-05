@@ -90,6 +90,9 @@ class CamDaliNumpyDataloader(object):
 
         # get files
         # data
+        # print(f"root dir: {root_dir}")
+        # print(f"prefix data: {prefix_data}")
+        # print(f"prefix label: {prefix_label}")
         if file_list_data is not None and os.path.isfile(os.path.join(root_dir, file_list_data)):
             with open(os.path.join(root_dir, file_list_data), "r") as f:
                 token = f.readlines()

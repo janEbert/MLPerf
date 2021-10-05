@@ -21,6 +21,7 @@
 
 import os
 import socket
+import subprocess
 import torch
 import torch.distributed as dist
 from datetime import timedelta
@@ -97,16 +98,19 @@ def get_local_group(batchnorm_group_size):
 
 # split comms using MPI
 def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
-    
-    print("importing MPI")
+    # print("importing MPI")
     # import MPI here:
     from mpi4py import MPI
     
-    print("done")
+    # print("done")
     # get MPI stuff
     mpi_comm = MPI.COMM_WORLD.Dup()
     comm_size = mpi_comm.Get_size()
     comm_rank = mpi_comm.Get_rank()
+
+    if instance_size == -1:
+        bn_grp = init(method, batchnorm_group_size)
+        return mpi_comm, mpi_comm, 0, bn_grp
 
     # determine the number of instances
     num_instances = comm_size // instance_size
@@ -114,14 +118,15 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     # comm_rank = instance_rank +  instance_id * instance_size
     instance_id = comm_rank // instance_size
     instance_rank = comm_rank % instance_size
-    
+
     # split the communicator
     mpi_instance_comm = mpi_comm.Split(color=instance_id, key=instance_rank)
-    
+    # print(f"{comm_rank}: mpi_instance_comm: {mpi_instance_comm}, id: {instance_id}")
+
     # for a successful scaffolding, we need to retrieve the IP addresses
     # for each instance_rank == 0 node:
     address = None
-    if method == "nccl-slurm": 
+    if method in ["nccl-slurm"]:
         address = os.getenv("HOSTNAME")
         sp=address.split(".")
         if len(sp) == 2 and sp[1]=="juwels":
@@ -134,9 +139,22 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         port = "29500"
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
-        wireup_store=None
+        wireup_store = None
+    elif method == "nccl-slurm-pmi":  # horeka methods
+        address = socket.gethostname()
+        if instance_rank != 0:
+            address = ""
+
+        address = mpi_instance_comm.bcast(address, root=0)
+        # if instance_id == 1:
+        print("MASTER_ADDR is set to ", address, "instance:", instance_id)
 
 
+        # save env vars
+        port = "29500"
+        os.environ["MASTER_ADDR"] = address
+        os.environ["MASTER_PORT"] = port
+        wireup_store = None
     elif method == "nccl-file":
         directory=os.environ["OUTPUT_DIR"]
         master_filename = os.path.join(directory, f"instance{instance_id}.store")
@@ -167,12 +185,14 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         print("creating process group")
         if instance_rank != 0:
-            time.sleep(2+10*instance_rank/instance_size)
+            time.sleep(2 + 10 * instance_rank / instance_size)
+
         dist.init_process_group(backend = "nccl",
                                 store = wireup_store,
                                 rank = instance_rank,
                                 world_size = instance_size,
                                 timeout=timedelta(seconds=240))
+
         print("Process group successfully created for rank", comm_rank, ". Now a global mpi barrier...")
         mpi_comm.barrier()
         print("... barrier passed on rank ", comm_rank, ".")
@@ -230,11 +250,14 @@ def init(method, batchnorm_group_size=1):
         port = "29500"
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
+        if rank != 0:
+            time.sleep(2 + 10 * rank / world_size)
                                                 
         #init DDP
         dist.init_process_group(backend = "nccl",
                                 rank = rank,
-                                world_size = world_size)
+                                world_size = world_size,
+                                timeout=timedelta(seconds=240))
     elif method == "dummy":
         rank = 0
         world_size = 1
