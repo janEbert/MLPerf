@@ -65,11 +65,8 @@ srun "${SRUN_PARAMS[@]}" bash -c '
     bash -c "\
       export CUDA_VISIBLE_DEVICES="0,1,2,3";  \
       export PMIX_SECURITY_MODE="native";
-<<<<<<< HEAD
-=======
       export NCCL_DEBUG=INFO; \
       export NCCL_DEBUG_SUBSYS=INIT,GRAPH ; \
->>>>>>> main
       source ${CONFIG_FILE}; \
       bash run_and_time.sh"'
       

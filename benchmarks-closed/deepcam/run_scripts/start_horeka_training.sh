@@ -8,9 +8,9 @@ ml purge
 # pmi2 cray_shasta
 SRUN_PARAMS=(
   --mpi="pmi2"
-#  --label
-  --cpu-bind="none"
-#  --cpus-per-task="19"
+  --label
+#  --cpu-bind="none"
+  --cpus-per-task="4"
   --unbuffered
 )
 
@@ -18,11 +18,24 @@ export SLURM_CPU_BIND_USER_SET="ldoms"
 
 #export DATA_DIR_PREFIX="/hkfs/home/dataset/datasets/deepcam_npy/"
 export DATA_DIR_PREFIX="/hkfs/work/workspace/scratch/qv2382-mlperf_data/hdf5s/"
-export DATA_CACHE_DIRECTORY="/mnt/odfs/${SLURM_JOB_ID}/stripe_8"
+#export DATA_CACHE_DIRECTORY="/mnt/odfs/${SLURM_JOB_ID}/stripe_8"
 #export STAGE_DIR_PREFIX="${DATA_CACHE_DIRECTORY}"
-export STAGE_DIR_PREFIX="/tmp/deepcam"
+#
 
-mkdir "${STAGE_DIR_PREFIX}"
+#export STAGE_METHOD="instance"
+#export STRIPE_SIZE="tmp"
+
+if [ "${STRIPE_SIZE}" == "tmp" ];
+  then
+    export STAGE_DIR_PREFIX="/tmp/deepcam"
+else
+  export STAGE_DIR_PREFIX="/mnt/odfs/${SLURM_JOB_ID}/stripe_${STRIPE_SIZE}"
+  export ODFSDIR="${STAGE_DIR_PREFIX}"
+fi
+#export STAGE_DIR_PREFIX="/mnt/odfs/${SLURM_JOB_ID}/stripe_16"
+#export ODFSDIR="${STAGE_DIR_PREFIX}"
+
+#mkdir "${STAGE_DIR_PREFIX}"
 
 export WIREUP_METHOD="nccl-slurm-pmi"
 export SEED="0"
@@ -53,12 +66,20 @@ echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
 ipaddr_dir="/etc/sysconfig/network-scripts/ifcfg-ib0"
-
+# ,${base_dir}/run_scripts/my_pytorch/distributed_c10d.py:/opt/conda/lib/python3.8/site-packages/torch/distributed/distributed_c10d.py
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}",/scratch,"${ipaddr_dir}",/tmp ${SINGULARITY_FILE} \
+  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}",/scratch,/tmp,"${STAGE_DIR_PREFIX}" ${SINGULARITY_FILE} \
     bash -c "\
       source ${CONFIG_FILE}; \
-      mkdir ${STAGE_DIR_PREFIX}; \
       export NCCL_DEBUG=INFO; \
       export SLURM_CPU_BIND_USER_SET=\"none\"; \
       bash run_and_time.sh"
+
+#mpirun -nolocal -npernode 4 --bind-to none singularity exec --nv \
+#  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}",/scratch,"${STAGE_DIR_PREFIX}",/tmp ${SINGULARITY_FILE} \
+#    bash -c "\
+#      source ${CONFIG_FILE}; \
+#      mkdir ${STAGE_DIR_PREFIX}; \
+#      export NCCL_DEBUG=INFO; \
+#      export SLURM_CPU_BIND_USER_SET=\"none\"; \
+#      bash run_and_time.sh"

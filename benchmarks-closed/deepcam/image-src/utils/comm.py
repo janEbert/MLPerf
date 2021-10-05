@@ -142,24 +142,6 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
         wireup_store = None
     elif method == "nccl-slurm-pmi":  # horeka methods
         address = socket.gethostname()
-        # hostname = socket.gethostbyname(hostname)
-        # address = os.getenv("HOSTNAME")
-        # print()
-        # bash_cmd = "ifconfig ib0 | grep 'inet' | cut -d: -f2 | awk '{print $2}'"
-        #
-        # bash_cmd = "cat /etc/sysconfig/network-scripts/ifcfg-ib0 | grep IPADDR"
-        #
-        # # process = subprocess.Popen(bash_cmd, stdout=subprocess.PIPE)
-        # # hostname, _ = process.communicate()
-        # r1 = subprocess.run([bash_cmd], shell=True, capture_output=True)
-        # address = r1.stdout.decode()[68:-2]
-
-        # print(f"{os.getenv('HOSTNAME')}, {os.getenv('SLURM_TOPOLOGY_ADDR')}, {address}")
-        # sp = address.split(".")
-        # if len(sp) == 2 and sp[1] == "juwels":
-        #     address = sp[0] + "i." + "juwels"
-        # bacst that into to everybody
-        # print(f"{comm_rank}, {instance_size}, address", address)
         if instance_rank != 0:
             address = ""
 
@@ -268,11 +250,14 @@ def init(method, batchnorm_group_size=1):
         port = "29500"
         os.environ["MASTER_ADDR"] = address
         os.environ["MASTER_PORT"] = port
+        if rank != 0:
+            time.sleep(2 + 10 * rank / world_size)
                                                 
         #init DDP
         dist.init_process_group(backend = "nccl",
                                 rank = rank,
-                                world_size = world_size)
+                                world_size = world_size,
+                                timeout=timedelta(seconds=240))
     elif method == "dummy":
         rank = 0
         world_size = 1

@@ -12,6 +12,7 @@ import copy
 
 import torch
 import h5py
+import subprocess
 
 
 def get_shard_range(num_files, num_shards, shard_id, cycle_dist=0):
@@ -200,7 +201,7 @@ def stage_instance_data(
         stage_mode="node",
         full_dataset_per_node=True,
         use_direct_io=False,
-        prepare_staging=False, load_hdf5=False
+        prepare_staging=False, load_hdf5=False, touch=False
 ):
     # comm parameters
     ssize = stage_comm.Get_size()
@@ -213,8 +214,8 @@ def stage_instance_data(
     f = h5py.File(hdf5file, "r")
     # print("getting dataset", dataset)
     ds = f.get(dataset)
-    # num_files = ds.shape[0]
-    num_files = 1000
+    num_files = ds.shape[0]
+    # num_files = 1000
 
     shard_start, shard_end = get_shard_range(num_files, isize, irank, cycle_dist=lsize)
     # print("shard_start", shard_start, " on rank ", irank)
@@ -238,7 +239,10 @@ def stage_instance_data(
             else:
                 id_ = dataset
             outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
-            np.save(os.path.join(target_directory, outputfile), data[i])
+            if touch:
+                subprocess.run(['touch', str(os.path.join(target_directory, outputfile))])
+            else:
+                np.save(os.path.join(target_directory, outputfile), data[i])
             files_local.append(outputfile)
             # print("heyhey ", outputfile, " on ", irank)
         # with open(os.path.join(target_directory, tag + "_" + dataset + ".lst"), "w") as f:
@@ -256,7 +260,7 @@ def stage_data_helper(
         local_size, local_rank, pargs, verify=False,
         full_dataset_per_node=True, use_direct_io=False,
         seed=333,
-        prepare_staging=False
+        prepare_staging=False, touch=False
 ):
     # - Every instance needs all the data, so we need inum replicas.
     # - Every rank irank within an instance can stage data_size / isize of the total data
@@ -340,8 +344,8 @@ def stage_data_helper(
 
         if not prepare_staging and (grank == 0):
             print(f"Staging {stage_filter}", flush=True)
-        elif grank == 0:
-            print(f"Preparing file lists for {stage_filter}", flush=True)
+        elif irank == 0:
+            print(f"Preparing file lists for {stage_dir} {stage_filter}", flush=True)
 
         # get directories
         if not load_hdf5:
@@ -386,7 +390,8 @@ def stage_data_helper(
             pargs.stage_mode,
             full_dataset_per_node,
             use_direct_io,
-            prepare_staging, load_hdf5=load_hdf5
+            prepare_staging, load_hdf5=load_hdf5,
+            touch=touch
         )
         stage_stop = time.perf_counter()
 
@@ -468,12 +473,99 @@ def stage_data_helper(
     return 121266, 15158
 
 
+def touch_files_in_stage_dir(
+    global_comm, instance_comm, instance_id, local_size, local_rank, pargs
+):
+    # need to touch all of the files
+    gsize = global_comm.Get_size()
+    grank = global_comm.Get_rank()
+    isize = instance_comm.Get_size()
+    irank = instance_comm.Get_rank()
+    lsize = local_size
+    lrank = local_rank
+    # print(
+    #     "gsize", gsize, "grank", grank, "isize", isize, "irank", irank, "lsize", lsize, "lrank",
+    #     lrank
+    # )
+
+
+
+    # og_dir = "/hkfs/home/dataset/datasets/deepcam_npy/"
+    og_dir_train = "/hkfs/home/dataset/datasets/deepcam_npy/train/"
+    og_dir_val = "/hkfs/home/dataset/datasets/deepcam_npy/validation/"
+
+    # create subdirectory for each instance, just in case if multiple instances see the same directory
+    # if pargs.data_format.endswith("hdf5"):
+    if pargs.data_staging_method == "instance":
+        stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+    elif pargs.data_staging_method == "nodes":
+        stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+        node_num = global_comm.Get_rank() // 4
+        stage_dir = os.path.join(stage_dir, str(node_num))
+    elif pargs.data_staging_method == "full":
+        stage_dir = pargs.stage_dir_prefix
+    else:
+        raise ValueError(f"invalid data staging method: {pargs.data_staging_method}")
+
+    # stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+    if lrank == 0:
+        os.makedirs(stage_dir, exist_ok=True)
+
+    # create the train and validation folders
+    train_dir = os.path.join(stage_dir, "train")
+    val_dir = os.path.join(stage_dir, "validation")
+    if lrank == 0:
+        os.makedirs(train_dir, exist_ok=True)
+        os.makedirs(val_dir, exist_ok=True)
+
+    data_filter = '*data-*.npy'
+    label_filter = '*label-*.npy'
+
+    train_data_files = sorted(glob.glob(os.path.join(train_dir, data_filter)))
+    train_label_files = sorted(glob.glob(os.path.join(train_dir, label_filter)))
+
+    val_data_files = sorted(glob.glob(os.path.join(train_dir, data_filter)))
+    val_label_files = sorted(glob.glob(os.path.join(train_dir, label_filter)))
+
+    # NOTE: THIS CREATES FILES FOR EACH INSTANCE!!
+
+    num_train, num_val = 121266, 15158
+    train_shard_sz = num_train // isize
+    train_shards = [train_shard_sz * i for i in range(isize)] + [num_train, ]
+    val_shard_sz = num_val // isize
+    val_shards = [val_shard_sz * i for i in range(isize)] + [num_val, ]
+    train_slice = slice(train_shards[irank], train_shards[irank + 1])
+    val_slice = slice(val_shards[irank], val_shards[irank + 1])
+
+    itrain_files = train_data_files[train_slice]
+    itrain_labels = train_label_files[train_slice]
+    for files in itrain_files:
+        base_name = os.path.basename(files)
+        f = os.path.join(train_dir, base_name)
+        subprocess.run(['touch', str(f)])
+    for files in itrain_labels:
+        base_name = os.path.basename(files)
+        f = os.path.join(train_dir, base_name)
+        subprocess.run(['touch', str(f)])
+
+    ival_files = val_data_files[val_slice]
+    ival_labels = val_label_files[val_slice]
+    for files in ival_files:
+        base_name = os.path.basename(files)
+        f = os.path.join(val_dir, base_name)
+        subprocess.run(['touch', str(f)])
+    for files in ival_labels:
+        base_name = os.path.basename(files)
+        f = os.path.join(val_dir, base_name)
+        subprocess.run(['touch', str(f)])
+
+
 def stage_to_NVMe_node_folders_h5(
         global_comm, num_instances, instance_id, instance_comm,
         local_size, local_rank, pargs, verify=False,
         full_dataset_per_node=True, use_direct_io=False,
         seed=333, prepare_staging=False,
-        number_workers=6
+        number_workers=6, touch=False
 ):
     # NOTE: this will use the global comm exclusivly
     # only stage the shard of the data which will go on that node
@@ -497,12 +589,6 @@ def stage_to_NVMe_node_folders_h5(
           f"lrank {lrank}")
 
     # create staging filter:
-    # pargs.data_format = "dali-numpy/hdf5"  # TODO Fix
-    # if False and (pargs.data_format == "dali-numpy") or (pargs.data_format == 'dali-es'):
-    #     stage_filter_list = ['validation/data-*.npy', 'validation/label-*.npy',
-    #                          'train/data-*.npy', 'train/label-*.npy']
-    #     print("not hdf5", pargs.data_format)
-    #  == "dali-numpy/hdf5" or pargs.data_format == "dali-es/hdf5"
     if pargs.data_format.endswith("hdf5"):
         stage_filter_list = ["train.h5/data", "train.h5/labels", "validation.h5/data",
                              "validation.h5/labels"]
@@ -515,57 +601,26 @@ def stage_to_NVMe_node_folders_h5(
         )
 
     # create subdirectory for each instance, just in case if multiple instances see the same directory
-    stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
-
-
-    if grank == 0:
-        os.makedirs(stage_dir, exist_ok=True)
-
+    # stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+    #
+    # if grank == 0:
+    #     os.makedirs(stage_dir, exist_ok=True)
+    #
     # node_number = grank // 4  # 4 gpus per node
     # stage_dir = os.path.join(stage_dir, str(node_number))
+    stage_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
+    node_num = grank // 4
+    stage_dir = os.path.join(stage_dir, str(node_num))
     # print(f"{grank} {lrank} {node_number} stage dir: {stage_dir}")
 
-    if lrank == 0:
-        os.makedirs(os.path.join(stage_dir, "train"), exist_ok=True)
-        os.makedirs(os.path.join(stage_dir, "validation"), exist_ok=True)
+    # if lrank == 0:
+    os.makedirs(stage_dir, exist_ok=True)
+    os.makedirs(os.path.join(stage_dir, "train"), exist_ok=True)
+    os.makedirs(os.path.join(stage_dir, "validation"), exist_ok=True)
 
     print(f"stage dir {stage_dir}")
 
-    # stage_dir -> /NVMe_folder/instance_num/
-    # #node_number/
-
-    # split the global communicator according to irank: key could be instance_id but we would end up
-    # with having all rank 0 on the same node. Now we got:
-    # irank = 0: [0, 1, 2, ..... num_instances]
-    # irank = 1: [1, 2, 3, ..... 0]]
-    # keys = np.roll(np.arange(0, num_instances), irank).tolist()
-    # stage_comm = global_comm.Split(color=irank, key=keys[instance_id])
-    # stage_comm = global_comm.Split(color=irank, key=instance_id)
-
-    # split the instance by nodes and create a comm with all matching local ranks by node
-    # num_nodes_per_instance = isize // lsize
-    # instance_node_id = irank // lsize
-    # instance_node_comm is a node-local MPI communicator
-    # TODO: is this needed???
-    # instance_node_comm = instance_comm.Split(color=lrank, key=instance_node_id)
-
-    # stage the statsfile, it is OK to do that beforehand:
-    # if prepare_staging:
-    #     # if grank == 0:
-    #     print("Copying stats.h5", flush=True)
-    #     with open(os.path.join(pargs.data_dir_prefix, "stats.h5"), "rb") as f:
-    #         statsfile = f.read()
-    #     # else:
-    #     #     statsfile = None
-    #
-    #     # # broadcast the statsfile
-    #     # statsfile = global_comm.bcast(statsfile, 0)
-    #
-    #     # save it
-    #     # if lrank == 0:
-    #     print(os.path.join(stage_dir, "stats.h5"))
-    #     with open(os.path.join(stage_dir, "stats.h5"), "wb") as f:
-    #         f.write(statsfile)
+    # stage_dir -> /NVMe_folder/instance_num/node_number/
 
     stage_comm = global_comm.Split(color=irank, key=instance_id)
 
@@ -595,28 +650,11 @@ def stage_to_NVMe_node_folders_h5(
         # if local_rank == 0:
         #     os.makedirs(stage_target_directory, exist_ok=True)
 
-        # if not load_hdf5:
-        #     # get file info to everybody
-        #     if grank == 0 and not load_hdf5:
-        #         allfiles = sorted(
-        #             glob(os.path.join(stage_source_directory, os.path.basename(stage_filter)))
-        #         )
-        #     else:
-        #         allfiles = None
-        #
-        #     # shuffle files if requested
-        #     if (grank == 0) and (not full_dataset_per_node) and (seed is not None):
-        #         rng = np.random.default_rng(seed)
-        #         rng.shuffle(allfiles)
-        #
-        #     # communicate list of files
-        #     allfiles = global_comm.bcast(allfiles, 0)
-
         # now stage the data so that each rank in each instance has the relevant data
         stage_start = time.perf_counter()
         print(f"stage_target_directory: {stage_target_directory}")
         total_read, total_write = stage_instance_data_nvme(
-            stage_comm, global_comm, instance_comm, hdf5_file, dataset, stage_target_directory,
+            stage_comm, global_comm, instance_comm, hdf5_file, dataset, stage_target_directory, touch=touch
         )
         stage_stop = time.perf_counter()
 
@@ -702,7 +740,7 @@ def stage_to_NVMe_node_folders_h5(
 
 
 def stage_instance_data_nvme(
-        stage_comm, global_comm, instance_comm, hdf5file, dataset, target_directory
+        stage_comm, global_comm, instance_comm, hdf5file, dataset, target_directory, touch=False
 ):
     srank = stage_comm.Get_rank()
     gsize = global_comm.Get_size()
@@ -752,30 +790,10 @@ def stage_instance_data_nvme(
     # shard_start, shard_end = get_shard_range(num_files, isize, irank, cycle_dist=lsize)
     # print("shard_start", shard_start, " on rank ", irank)
 
-    chunk_size = 64
+    chunk_size = 32
     chunk_start = shard_start
     files_local = []
 
-    # for threadpool:
-    # chunks = []
-    # if dataset == "labels":
-    #     id_ = "label"
-    # else:
-    #     id_ = dataset
-    #
-    # while True:
-    #     chunk_end = min(shard_end, chunk_start + chunk_size)
-    #     # chunks.append(slice(chunk_start, chunk_end))
-    #     # sl = slice(chunk_start, chunk_end)
-    #     threadpool.submit(
-    #         _thread_numpy_write,
-    #         (ds, files_local, chunk_start, chunk_end, id_, target_directory)
-    #     )
-    #     if chunk_end == shard_end:
-    #         break
-    #     chunk_start = chunk_end
-    # if instance_comm.Get_size() == global_comm.Get_size():
-        # this is the case that there is only a single instance
     while True:
         # print("this chunk starts at", chunk_start, "on", irank)
         t0 = time.perf_counter()
@@ -788,46 +806,47 @@ def stage_instance_data_nvme(
             else:
                 id_ = dataset
             outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
-            np.save(os.path.join(target_directory, outputfile), data[i])
+            if touch:
+                subprocess.run(['touch', str(os.path.join(target_directory, outputfile))])
+            else:
+                np.save(os.path.join(target_directory, outputfile), data[i])
             files_local.append(outputfile)
             # if i % 100 == 0:
-        print("write speed ", float(nbytes) / (time.perf_counter() - t0), irank)
+        # print("write speed ", float(nbytes) / (time.perf_counter() - t0), irank)
         if chunk_end == shard_end:
             break
         chunk_start = chunk_end
-    # else:
-    #     chunks = []
-    #
-    #     while True:
-    #         # print("this chunk starts at", chunk_start, "on", irank)
-    #         chunk_end = min(shard_end, chunk_start + chunk_size)
-    #         if srank == 0:
-    #             data = ds[chunk_start:chunk_end]
-    #         else:
-    #             if dataset == "label":
-    #                 shp = (chunk_end - chunk_start, 768, 1152)
-    #             else:
-    #                 shp = (chunk_end - chunk_start, 768, 1152, 16)
-    #             data = np.zeros(shp, np.float32)
-    #         w = stage_comm.Ibcast(data, root=0)
-    #         chunks.append((chunk_start, data, w),)
-    #         if chunk_end == shard_end:
-    #             break
-    #         chunk_start = chunk_end
-    #
-    #     for ck_st, ck, w in chunks:
-    #         w.wait()
-    #         data = ck
-    #         chunk_start = ck_st
-    #         for i in range(data.shape[0]):
-    #             if dataset == "labels":
-    #                 id_ = "label"
-    #             else:
-    #                 id_ = dataset
-    #             outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
-    #             np.save(os.path.join(target_directory, outputfile), data[i])
-    #             files_local.append(outputfile)
-    #         # print("heyhey ", outputfile, " on ", irank)
+
+    shard_start, shard_end = get_shard_range(num_files, isize, irank, cycle_dist=lsize)
+    # print("shard_start", shard_start, " on rank ", irank)
+
+    chunk_size = 16
+    try:
+        tag = os.path.basename(hdf5file).split(".")[0]
+    except Exception as ex:
+        print(ex)
+        tag = "123"
+    # print(tag)
+    chunk_start = shard_start
+    files_local = []
+    while True:
+        # print("this chunk starts at", chunk_start, "on", irank)
+        chunk_end = min(shard_end, chunk_start + chunk_size)
+        data = ds[chunk_start:chunk_end]
+        for i in range(data.shape[0]):
+            if dataset == "labels":
+                id_ = "label"
+            else:
+                id_ = dataset
+            outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
+            np.save(os.path.join(target_directory, outputfile), data[i])
+            files_local.append(outputfile)
+            # print("heyhey ", outputfile, " on ", irank)
+        # with open(os.path.join(target_directory, tag + "_" + dataset + ".lst"), "w") as f:
+        #    f.write("\n".join(files_local))
+        if chunk_end == shard_end:
+            break
+        chunk_start = chunk_end
 
     # print(f"finished staging on {grank}")
     # instance_comm.Barrier()
@@ -839,7 +858,7 @@ def stage_to_NVMe_all_shared_h5(
         local_size, local_rank, pargs, verify=False,
         full_dataset_per_node=True, use_direct_io=False,
         seed=333, prepare_staging=False,
-        number_workers=6
+        number_workers=6, touch=False,
 ):
     # NOTE: this will use the global comm exclusivly
     # only stage the shard of the data which will go on that node
@@ -916,9 +935,9 @@ def stage_to_NVMe_all_shared_h5(
 
         # now stage the data so that each rank in each instance has the relevant data
         stage_start = time.perf_counter()
-        print(f"stage_target_directory: {stage_target_directory}")
+        print(f"stage_target_directory: {stage_target_directory} touch: {touch}")
         total_read, total_write = stage_instance_data_nvme_all_shared(
-            global_comm, hdf5_file, dataset, stage_target_directory, stage_dir
+            global_comm, hdf5_file, dataset, stage_target_directory, stage_dir, touch=touch
         )
         stage_stop = time.perf_counter()
 
@@ -995,7 +1014,7 @@ def stage_to_NVMe_all_shared_h5(
 
 
 def stage_instance_data_nvme_all_shared(
-        global_comm, hdf5file, dataset, target_directory, stage_dir
+        global_comm, hdf5file, dataset, target_directory, stage_dir, touch=False
 ):
     gsize = global_comm.Get_size()
     grank = global_comm.Get_rank()
@@ -1043,12 +1062,16 @@ def stage_instance_data_nvme_all_shared(
             if dataset == "labels":
                 id_ = "label"
                 outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
-                label_files.append(outputfile)
+                # label_files.append(outputfile)
             else:
                 id_ = dataset
                 outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
-                data_files.append(outputfile)
-            np.save(os.path.join(target_directory, outputfile), data[i])
+
+                # data_files.append(outputfile)
+            if not touch:
+                np.save(os.path.join(target_directory, outputfile), data[i])
+            else:
+                subprocess.run(['touch', str(os.path.join(target_directory, outputfile))])
             # if i % 10 == 0:
             #     print("heyhey ", outputfile, " on ", irank)
         if chunk_end == shard_end:
@@ -1058,24 +1081,12 @@ def stage_instance_data_nvme_all_shared(
     return 0, 0
 
 
-def _thread_numpy_write(ds, files_local, chunk_slice, chunk_start, chunk_end, target_directory):
-    data = ds[chunk_start: chunk_end]
-    for i in range(data.shape[0]):
-        # if dataset == "labels":
-        #     id_ = "label"
-        # else:
-        #     id_ = dataset
-        outputfile = id + "-" + "{:06}".format(chunk_start + i) + ".npy"
-        np.save(os.path.join(target_directory, outputfile), data[i])
-        files_local.append(outputfile)
-
-
 def stage_to_NVMe_instance_rank_folders_h5(
         global_comm, num_instances, instance_id, instance_comm,
         local_size, local_rank, pargs, verify=False,
         full_dataset_per_node=True, use_direct_io=False,
         seed=333, prepare_staging=False,
-        number_workers=6
+        number_workers=6, touch=False
 ):
     # NOTE: this will use the global comm exclusivly
     # only stage the shard of the data which will go on that node
@@ -1150,7 +1161,7 @@ def stage_to_NVMe_instance_rank_folders_h5(
         stage_start = time.perf_counter()
         print(f"stage_target_directory: {stage_target_directory}")
         total_read, total_write = stage_instance_data_nvme_instance_ranks(
-            global_comm, instance_comm, hdf5_file, dataset, stage_target_directory, instance_id
+            global_comm, instance_comm, hdf5_file, dataset, stage_target_directory, instance_id, touch=touch
         )
         stage_stop = time.perf_counter()
 
@@ -1225,7 +1236,7 @@ def stage_to_NVMe_instance_rank_folders_h5(
 
 
 def stage_instance_data_nvme_instance_ranks(
-        global_comm, instance_comm, hdf5file, dataset, target_directory, instance_id
+        global_comm, instance_comm, hdf5file, dataset, target_directory, instance_id, touch=False
 ):
     gsize = global_comm.Get_size()
     grank = global_comm.Get_rank()
@@ -1296,7 +1307,11 @@ def stage_instance_data_nvme_instance_ranks(
             else:
                 id_ = dataset
             outputfile = id_ + "-" + "{:06}".format(chunk_start + i) + ".npy"
-            np.save(os.path.join(target_directory, outputfile), data[i])
+            if touch:
+                subprocess.run(['touch', str(os.path.join(target_directory, outputfile))])
+            else:
+                np.save(os.path.join(target_directory, outputfile), data[i])
+
             files_local.append(outputfile)
             # if i % 10 == 0:
             #     print("heyhey ", outputfile, " on ", irank)

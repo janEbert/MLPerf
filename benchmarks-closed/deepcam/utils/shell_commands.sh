@@ -34,6 +34,24 @@ eval_time() {
     echo "    max: ${max}"
 }
 
+train_time() {
+    local file=${1:?Must provide an output file with MLLOG tags}
+    cat ${file} | grep epoch_start | awk '{split($5,a,","); print a[1]}' > .tmp_start
+    cat ${file} | grep eval_start | awk '{split($5,a,","); print a[1]}' > .tmp_stop
+    local durations=$(paste .tmp_stop .tmp_start | awk '{print ($1-$2)/1000.}')
+    rm .tmp_start .tmp_stop
+    local stats=$(echo $durations | awk '{min=10000.; max=0.; mean=0.; for(i=1; i<=NF; i++){mean+=$i/NF;
+                                                                                      if(max < $i){ max = $i;};
+                                                                                      if(min > $i){ min = $i}; }; print mean, min, max}')
+    local mean=$(echo ${stats} | awk '{print $1}')
+    local min=$(echo ${stats} | awk '{print $2}')
+    local max=$(echo ${stats} | awk '{print $3}')
+    echo "Epoch time [s]:"
+    echo "    mean: ${mean}"
+    echo "    min: ${min}"
+    echo "    max: ${max}"
+}
+
 
 storage_bandwidth() {
     # input
