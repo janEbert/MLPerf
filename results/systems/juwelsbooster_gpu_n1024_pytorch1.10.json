@@ -1,5 +1,5 @@
 {
-  "submitter"                         : "HelmholtzAU",
+  "submitter"                         : "HelmholtzAI",
   "division"                          : "closed",
   "status"                            : "onprem",
   "system_name"                       : "juwelsbooster_gpu_n1024_pytorch1.10",
