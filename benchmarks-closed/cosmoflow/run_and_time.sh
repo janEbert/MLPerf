@@ -37,6 +37,7 @@ NUM_VALIDATION_SAMPLES=${NUM_VALIDATION_SAMPLES:-"-1"}
 DALI_THREADS=${DALI_THREADS:-6}
 INSTANCES=${INSTANCES:-1}
 USE_H5=${USE_H5:-"1"}
+READ_CHUNK_SIZE=${READ_CHUNK_SIZE:-"32"}
 
 
 PROFILE=${PROFILE:-0}
@@ -131,6 +132,7 @@ fi
 if [[ ${USE_H5} -ge 1 ]]; then
         PARAMS+=(
             --use_h5
+            --read_chunk_size ${READ_CHUNK_SIZE}
         )
 fi
 
