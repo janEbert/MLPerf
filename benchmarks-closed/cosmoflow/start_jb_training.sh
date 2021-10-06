@@ -16,6 +16,8 @@ export SLURM_CPU_BIND_USER_SET="none"
 export USE_IME=0
 # Whether to use HDF5 data.
 export USE_H5=1
+export READ_CHUNK_SIZE=64
+
 # Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
 # to 1 has a large performance impact (either only on the staging part
 # or on the whole run depending on `APPLY_PRESTAGE`).
