@@ -74,8 +74,12 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
             kwargs = dict(cache_directory = os.path.join(pargs.data_cache_directory, "train"))
         else:
             print("data_format not understood", pargs.data_format)
+
+        # train_list = os.path  .join(root_dir, f'data_train.txt')
+        # train_labels = os.path.join(root_dir, f'label_train.txt')
             
         train_dir = os.path.join(root_dir, "train")
+
         train_loader = dl_handle(train_dir,
                                  data_filter,
                                  label_filter,
@@ -133,15 +137,18 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
             dl_handle = CamDaliRecordIODataloader
             data_filter='data-*.rec'
             label_filter='label-*.rec'
-            
+
+        val_list = os.path.join(root_dir, f'data_validation.txt')
+        val_labels = os.path.join(root_dir, f'label_validation.txt')
+
         validation_dir = os.path.join(root_dir, "validation")
         validation_loader = dl_handle(validation_dir,
                                       data_filter,
                                       label_filter,
                                       os.path.join(pargs.data_dir_prefix, "stats.h5"),
                                       pargs.local_batch_size_validation,
-                                      file_list_data = "files_data.lst",
-                                      file_list_label = "files_label.lst",
+                                      file_list_data = val_list,  # "files_data.lst",
+                                      file_list_label = val_labels,  # "files_label.lst",
                                       num_threads = pargs.max_inter_threads,
                                       device = device,
                                       num_shards = comm_size,

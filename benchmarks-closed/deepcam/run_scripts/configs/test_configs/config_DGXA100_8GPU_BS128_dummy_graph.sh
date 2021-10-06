@@ -36,3 +36,6 @@ export DGXNNODES=32
 export DGXSYSTEM=$(basename $(readlink -f ${BASH_SOURCE[0]}) | sed 's/^config_//' | sed 's/\.sh$//' )
 export WALLTIME=02:00:00
 
+
+export TRAINING_INSTANCE_SIZE=16
+export STAGE_DIR_PREFIX=/tmp/deepcam

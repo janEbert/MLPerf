@@ -50,7 +50,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
       --partition     "booster"
       --output        "${OUTPUT_DIR}slurm-cosmo-JB-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-cosmo-JB-N-${SLURM_NNODES}-%j.err"
-      --account       "atmlaml"
+      --account       "hai_cosmo"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_jb_training.sh
 

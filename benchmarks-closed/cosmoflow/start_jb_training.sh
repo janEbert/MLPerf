@@ -25,13 +25,10 @@ export APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
 # (strong scaling has `INSTANCES=1`).
 export INSTANCES=${INSTANCES:-1}
 
-# Only apply prestaging when we
-# 1. have only one parallel training run
-# 2. have enough nodes to be able to support the memory requirements.
+# Only apply prestaging when we have enough nodes to be able to
+# support the memory requirements.
 export APPLY_PRESTAGE=$(
-    if [ "$INSTANCES" -gt 1 ]; then
-        echo 0
-    elif [ "$SLURM_NNODES" -ge 64 ]; then
+    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
         echo 1
     else
         echo 0
@@ -63,14 +60,14 @@ export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
 # director for image: /workspace/cosmoflow/
 #export CUDA_AVAILABLE_DEVICES="0,1,2,3"
 export CUDA_VISIBLE_DEVICES="0,1,2,3"
+export NCCL_IB_TIMEOUT=20
 
 SCRIPT_DIR="${base_dir}"
 #"/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
 # SINGULARITY_FILE="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
-SINGULARITY_FILE=/p/project/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py.sif
+SINGULARITY_FILE=/p/project/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
 
-if [ -n "${CONFIG_FILE}" ]
-  then
+if [ -z "${CONFIG_FILE}" ]; then
     export CONFIG_FILE="${SCRIPT_DIR}cosmoflow/configs/config_DGXA100_common.sh"
 fi
 echo "${CONFIG_FILE}"

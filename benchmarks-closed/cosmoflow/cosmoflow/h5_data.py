@@ -35,13 +35,20 @@ def stage_files(
 ) -> Tuple[List[str], List[str], Callable]:
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
-    all_indices = np.arange(len(data_filenames))
-    if preshuffle_permutation is not None:
-        all_indices = all_indices[preshuffle_permutation]
-
     files_per_node = len(data_filenames) // number_of_nodes
+
+    if preshuffle_permutation is not None:
+        read_chunk_size = 1
+        all_indices = np.arange(len(data_filenames))
+        all_indices = all_indices[preshuffle_permutation]
+        indices_per_node = files_per_node
+    else:
+        read_chunk_size = 32
+        all_indices = np.arange(0, len(data_filenames), read_chunk_size)
+        indices_per_node = len(all_indices) // number_of_nodes
+
     per_node_indices = all_indices[
-        current_node * files_per_node:(current_node+1) * files_per_node]
+        current_node * indices_per_node:(current_node+1) * indices_per_node]
     per_node_data_filenames = data_filenames[
         current_node * files_per_node:(current_node+1) * files_per_node]
     per_node_label_filenames = label_filenames[
@@ -55,21 +62,37 @@ def stage_files(
         data_dset = h5_file['data']
         label_dset = h5_file['label']
         copied_files = 0
-        for (i, data, label) in zip(
+        per_shard_data_filenames = per_node_data_filenames[
+            dist_desc.local_rank::dist_desc.local_size]
+        per_shard_label_filenames = per_node_label_filenames[
+            dist_desc.local_rank::dist_desc.local_size]
+        for (i, f) in zip(
                 per_node_indices[
                     dist_desc.local_rank::dist_desc.local_size],
-                per_node_data_filenames[
-                    dist_desc.local_rank::dist_desc.local_size],
-                per_node_label_filenames[
-                    dist_desc.local_rank::dist_desc.local_size],
+                range(
+                    0,
+                    len(per_shard_data_filenames),
+                    read_chunk_size,
+                ),
         ):
-            np_data = data_dset[i]
-            np.save(output_dir / data, np_data)
+            next_i = i + read_chunk_size
+            next_f = f + read_chunk_size
 
-            np_label = label_dset[i]
-            np.save(output_dir / label, np_label)
+            np_datas = data_dset[i:next_i]
+            for (np_data, data) in zip(
+                    np_datas,
+                    per_shard_data_filenames[f:next_f],
+            ):
+                np.save(output_dir / data, np_data)
 
-            copied_files += 1
+            np_labels = label_dset[i:next_i]
+            for (np_label, label) in zip(
+                    np_labels,
+                    per_shard_label_filenames[f:next_f],
+            ):
+                np.save(output_dir / label, np_label)
+
+            copied_files += len(np_datas)
 
     # print(f"Node {current_node}, process {dist_desc.local_rank}, "
     #       f"dataset contains {len(data_filenames)} samples, "

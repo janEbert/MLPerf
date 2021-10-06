@@ -15,6 +15,8 @@ export BATCHNORM_GROUP_SIZE=2
 # data parameters
 export SHUFFLE_MODE="global"
 export DATA_FORMAT="dali-es/hdf5"
+# sticking with dali-es for now. can test dali-numpy/hdf5 later
+#"dali-es/hdf5"
 export PRECISION_MODE="amp"
 export LOCAL_VALIDATION_BATCH_SIZE=8
 
@@ -35,4 +37,7 @@ export DGXNGPU=4
 export DGXNNODES=32
 export DGXSYSTEM=$(basename $(readlink -f ${BASH_SOURCE[0]}) | sed 's/^config_//' | sed 's/\.sh$//' )
 export WALLTIME=02:00:00
+
+export TRAINING_INSTANCE_SIZE=8
+export STAGE_DIR_PREFIX=/tmp/deepcam
 

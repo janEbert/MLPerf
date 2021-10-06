@@ -4,6 +4,11 @@
 # to use the script:
 #   run_and_time.sh
 
+#export OMPI_MCA_btl="^openib" #To prevent deadlock between Horovd and NCCL at 96 nodes
+#export NCCL_SOCKET_IFNAME="ib0"
+#export OMPI_MCA_coll_hcoll_enable=0
+#export NCCL_SOCKET_IFNAME="ib0"
+#export NCCL_COLLNET_ENABLE=0
 # start timing
 start=$(date +%s)
 start_fmt=$(date +%Y-%m-%d\ %r)
@@ -133,6 +138,7 @@ if [ ! -z "${TRAINING_INSTANCE_SIZE}" ]; then
 	    --stage_num_workers ${STAGE_NUM_WORKERS:-1}
 	    --stage_batch_size ${STAGE_BATCH_SIZE:--1}
 	    --stage_mode ${STAGE_MODE:-"node"}
+	    --data_staging_method ${STAGE_METHOD:-"instance"}
 	)
 	# do we need to verify the staging results
 	if [ "${STAGE_VERIFY:-0}" -eq 1 ]; then
@@ -165,7 +171,7 @@ CLEANUP_CMD="cp ${OUTPUT_DIR}/logs/${RUN_TAG}.log /results/; \
 	           sed -i 's|SUBMISSION_PLATFORM_PLACEHOLDER|${DGXSYSTEM}|g' /results/${RUN_TAG}.log"
 
 # run command
-echo "running {BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} "${PARAMS[@]}";"
+echo "running ${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} ${PARAMS[@]}"
 ${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} "${PARAMS[@]}"; ret_code=$?
 
 if [[ $ret_code != 0 ]]; then exit $ret_code; fi
