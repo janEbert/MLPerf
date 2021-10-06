@@ -68,4 +68,6 @@ srun "${SRUN_PARAMS[@]}" singularity exec --nv \
       HOME=''; \
       source ${CONFIG_FILE}; \
       export DATA_SHARD_MULTIPLIER=$((DATA_SHARD_MULTIPLIER * 2)); \
+      export DGXNNODES=$SLURM_NNODES; \
+      export DGXNGPU=4; \
       bash run_and_time.sh"
