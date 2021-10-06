@@ -18,24 +18,9 @@ export USE_IME=0
 export USE_H5=1
 export READ_CHUNK_SIZE=64
 
-# Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
-# to 1 has a large performance impact (either only on the staging part
-# or on the whole run depending on `APPLY_PRESTAGE`).
-export APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
-
 # How many parallel trainings to run to test weak scaling
 # (strong scaling has `INSTANCES=1`).
 export INSTANCES=${INSTANCES:-1}
-
-# Only apply prestaging when we have enough nodes to be able to
-# support the memory requirements.
-export APPLY_PRESTAGE=$(
-    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
-        echo 1
-    else
-        echo 0
-    fi
-       )
 
 if [[ ${USE_H5} -ge 1 ]]; then
     if [[ ${USE_IME} -ge 1 ]]; then

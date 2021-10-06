@@ -39,6 +39,21 @@ INSTANCES=${INSTANCES:-1}
 USE_H5=${USE_H5:-"1"}
 READ_CHUNK_SIZE=${READ_CHUNK_SIZE:-"32"}
 
+# Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
+# to 1 has a large performance impact (either only on the staging part
+# or on the whole run depending on `APPLY_PRESTAGE`).
+APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
+
+# Only apply prestaging when we have enough nodes to be able to
+# support the memory requirements.
+export APPLY_PRESTAGE=$(
+    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
+        echo 1
+    else
+        echo 0
+    fi
+       )
+
 
 PROFILE=${PROFILE:-0}
 PROFILE_EXCEL=${PROFILE_EXCEL:-0}
