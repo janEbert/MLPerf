@@ -49,6 +49,10 @@ def stage_files(
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
     files_per_node = len(data_filenames) // number_of_nodes
+    assert (
+        preshuffle_permutation is not None
+        or dist_desc.size * read_chunk_size <= len(data_filenames) * shard_mult
+    ), '`read_chunk_size` is too high and will cause errors'
 
     if preshuffle_permutation is not None:
         read_chunk_size = 1
