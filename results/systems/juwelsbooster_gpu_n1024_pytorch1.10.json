@@ -31,11 +31,11 @@
   "framework"                         : "PyTorch 1.10",
   "other_software_stack"              : {
 	"Singulartiy": "3.7.1",
-        "OpenMPI": "4.2.1",
+        "OpenMPI": "4.1.2a1",
         "Python": "3.8.10",
         "NCCL": "2.11.4",
         "cuDNN": "8.2.4",
-        "CUDA": "11.4.108",
+        "CUDA": "11.4.120",
         "CUDA Driver": "470.57.02"
     },
   "operating_system"                  : "CentOS 8",
