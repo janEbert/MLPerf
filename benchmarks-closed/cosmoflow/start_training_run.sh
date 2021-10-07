@@ -56,8 +56,6 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
 
 elif [ "$TRAINING_SYSTEM" == "horeka" ]
   then
-    echo 'not implemented'
-    exit 2
     hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
     export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
@@ -66,7 +64,11 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
       --partition     "accelerated"
       --output        "${OUTPUT_DIR}slurm-cosmo-HoreKa-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-cosmo-HoreKa-N-${SLURM_NNODES}-%j.err"
-      --exclude       "hkn[0533,0614,0811]"
+      --exclude       "hkn[0518,0519,0533,0614,0625,0811]"
+      --cpu-freq="high"
+      --gpu-freq="high"
+      --constraint="BEEOND"
+      -A "hk-project-test-mlperf"
     )
     sbatch "${SBATCH_PARAMS[@]}" start_horeka_training.sh
 else

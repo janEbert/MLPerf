@@ -239,65 +239,46 @@ class Validator(object):
         # set to eval
         self.model.eval()
 
-        trank = dist.get_rank()
-        
         # no grad section:
         with torch.no_grad():
         
             # iterate over validation sample
             step_val = 0
-            start_time = time.perf_counter()
             for inputs_val, label_val, filename_val in validation_loader:
-                t0 = time.perf_counter()
-                data_load_time = time.perf_counter() - start_time
-                if step_val == 0 and trank == 0:
-                    print(f"EVAL: first data load time: {data_load_time}")
 
                 if not self.enable_dali:
                     #send to device
-                    t0 = time.perf_counter()
                     inputs_val = inputs_val.to(self.device)
                     label_val = label_val.to(self.device)
-                    # if trank == 0:
-                    #     print(f"EVAL: transfer to GPU time -> {time.perf_counter() - t0}")
 
                 if inputs_val.numel() == 0:
                     # we are done
                     continue
 
                 # store samples in batch
-                # t0 = time.perf_counter()
                 num_samples = inputs_val.shape[0]
                 if num_samples < self.batch_size:
                     inputs_padding = (0,0, 0,0, 0,0, 0,self.batch_size-num_samples)
                     inputs_val = F.pad(inputs_val, inputs_padding, "constant", 0)
                     label_padding = (0,0, 0,0, 0,self.batch_size-num_samples)
                     label_val = F.pad(label_val, label_padding, "constant", 0)
-                    # if trank == 0:
-                    #     print(f"EVAL: padding block -> {time.perf_counter() - t0}")
-                    
+
                 # convert to half if requested
                 if self.force_fp16:
                     inputs_val = inputs_val.half()
                     
                 # to NHWC
-                # t0 = time.perf_counter()
                 if self.enable_nhwc:
                     N, H, W, C = (self.batch_size, 768, 1152, 16)
                     inputs_val = torch.as_strided(inputs_val, size=[N, C, H, W], stride = [C*H*W, 1, W*C, C])
-                    # if trank == 0:
-                    #     print(f"EVAL: nhcw block -> {time.perf_counter() - t0}")
         
                 if self.graph is None:
-                    # t0 = time.perf_counter()
                     # forward pass
                     with amp.autocast(enabled = self.enable_amp):
                         outputs_val = self.model.forward(inputs_val)
                 
                         # Compute loss
                         loss_val = self.criterion(outputs_val, label_val)
-                    # if trank == 0:
-                    #     print(f"EVAL: graph is None, after forward pass -> {time.perf_counter() - t0}")
 
                 else:
                     t0 = time.perf_counter()
@@ -308,9 +289,6 @@ class Validator(object):
                     # copy variables
                     loss_val = self.static_loss.clone()
                     outputs_val = self.static_output.clone()
-                    # if trank == 0:
-                    #     print(f"EVAL: graph replay -> {time.perf_counter() - t0}")
-                # t0 = time.perf_counter()
                 # Compute score
                 if self.enable_nhwc:
                     outputs_val = outputs_val.contiguous(memory_format = torch.contiguous_format)
@@ -328,24 +306,15 @@ class Validator(object):
                 loss_sum_val += loss_val * num_samples
                 #increase counter
                 count_sum_val += num_samples
-                step_val += 1
-                if trank == 0:
-                    print(f"EVAL: step {step_val} time -> {time.perf_counter() - t0}")
 
         # average the validation loss
-        # t0 = time.perf_counter()
         if dist.is_initialized():
             dist.all_reduce(red_buffer, op=dist.ReduceOp.SUM, async_op=False)
-        # if trank == 0:
-        #     print(f"EVAL: allreduce time -> {time.perf_counter() - t0}")
 
             
         count_red = count_sum_val.item()
         loss_avg_val = loss_sum_val.item() / count_red
         iou_avg_val = iou_sum_val.item() / count_red
-
-        if trank == 0:
-            print(f"EVAL: full eval time -> {time.perf_counter() - start_time}")
         
         return loss_avg_val, iou_avg_val
 

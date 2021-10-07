@@ -1,1 +1,4 @@
+results/deepcam/*
+results/cosmoflow/*
 benchmarks-closed/deepcam/docker/*
+*.sif

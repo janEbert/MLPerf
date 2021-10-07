@@ -211,8 +211,9 @@ class H5CosmoDataset(datam.CosmoDataset):
             preshuffle=preshuffle,
             shard_mult=shard_mult,
         )
-        assert samples % self.dist.size == 0, \
-            f"Cannot divide {samples} items into {self.dist.size} workers"
+
+        # assert samples % self.dist.size == 0, \
+        #     f"Cannot divide {samples} items into {self.dist.size} workers"
 
         iter_count = samples // self.dist.size // batch_size
 
@@ -242,8 +243,8 @@ class H5CosmoDataset(datam.CosmoDataset):
             shard="global",
             prestage=False,
         )
-        assert samples % self.dist.size == 0 or not shard, \
-            f"Cannot divide {samples} items into {self.dist.size} workers"
+        # assert samples % self.dist.size == 0 or not shard, \
+        #     f"Cannot divide {samples} items into {self.dist.size} workers"
 
         iter_count = samples // (self.dist.size if shard else 1) // batch_size
 
