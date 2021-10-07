@@ -1,16 +1,12 @@
 import os
-import mmap
 from glob import glob
 import itertools
 import numpy as np
-import argparse as ap
-import concurrent.futures as cf
 import time
 from queue import LifoQueue as Queue
 import torch.cuda.nvtx as nvtx
 import copy
 
-import torch
 import h5py
 import subprocess
 
@@ -19,17 +15,14 @@ def get_shard_range(num_files, num_shards, shard_id, cycle_dist=0):
     assert (shard_id < num_shards)
     # shard files into bulk and remainder:
     num_files_per_shard = num_files // num_shards
-    num_files_bulk = num_files_per_shard * num_shards
+    # num_files_bulk = num_files_per_shard * num_shards
     num_files_remainder = num_files % num_shards
-    # print("num_files_remainder", num_files_remainder)
 
     shard_start = [0]
     for i in range(1, num_shards):
         if i - 1 < num_files_remainder:
-            # print("adding one")
             this_shard_start = shard_start[-1] + (num_files_per_shard + 1)
         else:
-            # print("not adding one")
             this_shard_start = shard_start[-1] + (num_files_per_shard)
         shard_start.append(this_shard_start)
     shard_start.append(num_files)
@@ -38,157 +31,6 @@ def get_shard_range(num_files, num_shards, shard_id, cycle_dist=0):
     for i in range(num_shards):
         ranges.append((shard_start[i], shard_start[i + 1]))
     return ranges[shard_id]
-
-
-def finalize_load_local(fdata_handles):
-    nvtx.range_push("finalize_load_local")
-    file_data = []
-    rbytes = 0
-    while not fdata_handles.empty():
-        handle = fdata_handles.get()
-        if handle.done():
-            fname, fdata, fbytes = handle.result()
-            file_data.append((fname, fdata))
-            rbytes += fbytes
-        else:
-            fdata_handles.put(handle)
-    nvtx.range_pop()
-
-    return file_data, rbytes
-
-
-def finalize_load_global(comm, files, rbytes):
-    nvtx.range_push("finalize_load_global")
-    files_all, rbytes = exchange_buffers(comm, files)
-    # we can compute that from the gathered data, no need to sync up
-    # rbytes = comm.allreduce(rbytes)
-    nvtx.range_pop()
-
-    return files_all, rbytes
-
-
-def load_file(filename):
-    with open(filename, "rb") as f:
-        token = f.read()
-
-    return filename, token, len(token)
-
-
-def load_file_direct(filename, filesize=None):
-    blocksize = 4096
-    token = ioh.load_file_direct(
-        filename, blocksize=blocksize, filesize=0 if filesize is None else filesize
-    )
-
-    return filename, token, len(token)
-
-
-def load_batch_parallel(executor, files, comm_size, comm_rank, filesize=None, direct_io=False):
-    nvtx.range_push("load_batch_parallel")
-    # split the data across ranks
-    if comm_size > 1:
-        files_load = get_shard(files, comm_size, comm_rank, cycle_dist=0)
-    else:
-        files_load = files
-
-    # submit loads:
-    queue = Queue()
-    for filename in files_load:
-        if direct_io:
-            queue.put(executor.submit(load_file_direct, filename, filesize))
-        else:
-            queue.put(executor.submit(load_file, filename))
-    nvtx.range_pop()
-
-    return queue
-
-
-def load_batch(files, comm_size, comm_rank):
-    nvtx.range_push("load_batch")
-    # split the data across ranks
-    if comm_size > 1:
-        files_load = get_shard(files, comm_size, comm_rank, cycle_dist=0)
-    else:
-        files_load = files
-
-    # keep track of how many bytes we load
-    rbytes = 0
-    result = []
-    for fname in files_load:
-        _, token, size = load_file(fname)
-        result.append((fname, token))
-        rbytes += size
-    nvtx.range_pop()
-
-    return result, rbytes
-
-
-def finalize_save_local(fdata_handles):
-    nvtx.range_push("finalize_save_local")
-    wbytes = 0
-    while not fdata_handles.empty():
-        handle = fdata_handles.get()
-        if handle.done():
-            fbytes = handle.result()
-            wbytes += fbytes
-        else:
-            fdata_handles.put(handle)
-    nvtx.range_pop()
-
-    return wbytes
-
-
-def save_file(ofname, fdata):
-    with open(ofname, "wb") as f:
-        f.write(fdata)
-    return len(fdata)
-
-
-def save_batch_parallel(executor, output_dir, fdata):
-    nvtx.range_push("save_batch_parallel")
-    queue = Queue()
-    for fn, fd in fdata:
-        ofn = os.path.join(output_dir, os.path.basename(fn))
-        queue.put(executor.submit(save_file, ofn, copy.copy(fd)))
-    nvtx.range_pop()
-
-    return queue
-
-
-def save_batch(output_dir, fdata):
-    nvtx.range_push("save_batch")
-    wbytes = 0.
-    for fn, fd in fdata:
-        ofn = os.path.join(output_dir, os.path.basename(fn))
-        wbytes += save_file(ofn, fd)
-    nvtx.range_pop()
-
-    return wbytes
-
-
-def exchange_buffers(comm, fdata):
-    # quick exit if we do not need to communicate
-    if comm.Get_size() == 1:
-        rbytes = sum([len(x[1]) for x in fdata])
-        return fdata, rbytes
-
-    # profile region start
-    nvtx.range_push("exchange_buffers")
-
-    # gather
-    fdata_all = comm.allgather(fdata)
-
-    # flatten
-    fdata_result = list(itertools.chain(*fdata_all))
-
-    # size:
-    rbytes = sum([len(x[1]) for x in fdata_result])
-
-    # stop profiling
-    nvtx.range_pop()
-
-    # return
-    return fdata_result, rbytes
 
 
 # this routine stages data for each instance
@@ -204,33 +46,23 @@ def stage_instance_data(
         prepare_staging=False, load_hdf5=False, touch=False
 ):
     # comm parameters
-    ssize = stage_comm.Get_size()
-    srank = stage_comm.Get_rank()
+    # ssize = stage_comm.Get_size()
+    # srank = stage_comm.Get_rank()
     isize = instance_comm.Get_size()
     irank = instance_comm.Get_rank()
-    nsize = instance_node_comm.Get_size()
-    nrank = instance_node_comm.Get_rank()
-    # print(hdf5file)
+    # nsize = instance_node_comm.Get_size()
+    # nrank = instance_node_comm.Get_rank()
     f = h5py.File(hdf5file, "r")
-    # print("getting dataset", dataset)
     ds = f.get(dataset)
     num_files = ds.shape[0]
     # num_files = 1000
 
     shard_start, shard_end = get_shard_range(num_files, isize, irank, cycle_dist=lsize)
-    # print("shard_start", shard_start, " on rank ", irank)
 
     chunk_size = 16
-    try:
-        tag = os.path.basename(hdf5file).split(".")[0]
-    except Exception as ex:
-        print(ex)
-        tag = "123"
-    # print(tag)
     chunk_start = shard_start
     files_local = []
     while True:
-        # print("this chunk starts at", chunk_start, "on", irank)
         chunk_end = min(shard_end, chunk_start + chunk_size)
         data = ds[chunk_start:chunk_end]
         for i in range(data.shape[0]):
@@ -244,14 +76,10 @@ def stage_instance_data(
             else:
                 np.save(os.path.join(target_directory, outputfile), data[i])
             files_local.append(outputfile)
-            # print("heyhey ", outputfile, " on ", irank)
-        # with open(os.path.join(target_directory, tag + "_" + dataset + ".lst"), "w") as f:
-        #    f.write("\n".join(files_local))
         if chunk_end == shard_end:
             break
         chunk_start = chunk_end
 
-    # instance_comm.Barrier()
     return 0, 0
 
 
@@ -272,10 +100,7 @@ def stage_data_helper(
     irank = instance_comm.Get_rank()
     lsize = local_size
     lrank = local_rank
-    # print(
-    #     "gsize", gsize, "grank", grank, "isize", isize, "irank", irank, "lsize", lsize, "lrank",
-    #     lrank
-    # )
+
 
     load_hdf5 = False
 
@@ -284,12 +109,12 @@ def stage_data_helper(
     if False and (pargs.data_format == "dali-numpy") or (pargs.data_format == 'dali-es'):
         stage_filter_list = ['validation/data-*.npy', 'validation/label-*.npy',
                              'train/data-*.npy', 'train/label-*.npy']
-        print("not hdf5", pargs.data_format)
+        # print("not hdf5", pargs.data_format)
     elif pargs.data_format == "dali-numpy/hdf5" or True:
         stage_filter_list = ["train.h5/data", "train.h5/labels", "validation.h5/data",
                              "validation.h5/labels"]
         load_hdf5 = True
-        print("hdf5!!")
+        # print("hdf5!!")
     elif pargs.data_format == "dali-dummy":
         return
     else:
@@ -308,34 +133,11 @@ def stage_data_helper(
         os.makedirs(os.path.join(stage_dir, "validation"), exist_ok=True)
 
     # split the global communicator according to irank: key could be instance_id but we would end up
-    # with having all rank 0 on the same node. Now we got:
-    # irank = 0: [0, 1, 2, ..... num_instances]
-    # irank = 1: [1, 2, 3, ..... 0]]
-    # keys = np.roll(np.arange(0, num_instances), irank).tolist()
-    # stage_comm = global_comm.Split(color=irank, key=keys[instance_id])
     stage_comm = global_comm.Split(color=irank, key=instance_id)
 
     # split the instance by nodes and create a comm with all matching local ranks by node
-    num_nodes_per_instance = isize // lsize
     instance_node_id = irank // lsize
     instance_node_comm = instance_comm.Split(color=lrank, key=instance_node_id)
-
-    # stage the statsfile, it is OK to do that beforehand:
-    # if prepare_staging:
-    #     if grank == 0:
-    #         # print("Copying stats.h5", flush=True)
-    #         with open(os.path.join(pargs.data_dir_prefix, "stats.h5"), "rb") as f:
-    #             statsfile = f.read()
-    #     else:
-    #         statsfile = None
-    #
-    #     # broadcast the statsfile
-    #     statsfile = global_comm.bcast(statsfile, 0)
-    #
-    #     # save it
-    #     if lrank == 0:
-    #         with open(os.path.join(stage_dir, "stats.h5"), "wb") as f:
-    #             f.write(statsfile)
 
     # iterate over staging filters
     file_stats = {}
@@ -591,10 +393,10 @@ def stage_to_NVMe_node_folders_h5(
     for stage_filter in stage_filter_list:
         nvtx.range_push(f"stage {stage_filter}")
 
-        if not prepare_staging and (grank == 0):
-            print(f"Staging {stage_filter}", flush=True)
-        elif grank == 0:  # this should run for the single h5
-            print(f"Preparing file lists for {stage_filter}", flush=True)
+        # if not prepare_staging and (grank == 0):
+        #     print(f"Staging {stage_filter}", flush=True)
+        # elif grank == 0:  # this should run for the single h5
+        #     print(f"Preparing file lists for {stage_filter}", flush=True)
 
         # get directories
         tmp = stage_filter.split("/")  # split off the data/lable at the end of the stage_filer
@@ -604,7 +406,7 @@ def stage_to_NVMe_node_folders_h5(
 
         # now stage the data so that each rank in each instance has the relevant data
         stage_start = time.perf_counter()
-        print(f"stage_target_directory: {stage_target_directory}")
+        # print(f"stage_target_directory: {stage_target_directory}")
         total_read, total_write = stage_instance_data_nvme(
             stage_comm, global_comm, instance_comm, hdf5_file, dataset, stage_target_directory, touch=touch
         )
@@ -1138,5 +940,5 @@ def stage_instance_data_nvme_instance_ranks(
         if chunk_end == shard_end:
             break
         chunk_start = chunk_end
-        
+
     return 0, 0
