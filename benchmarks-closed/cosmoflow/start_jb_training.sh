@@ -16,24 +16,11 @@ export SLURM_CPU_BIND_USER_SET="none"
 export USE_IME=0
 # Whether to use HDF5 data.
 export USE_H5=1
-# Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
-# to 1 has a large performance impact (either only on the staging part
-# or on the whole run depending on `APPLY_PRESTAGE`).
-export APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
+export READ_CHUNK_SIZE=64
 
 # How many parallel trainings to run to test weak scaling
 # (strong scaling has `INSTANCES=1`).
 export INSTANCES=${INSTANCES:-1}
-
-# Only apply prestaging when we have enough nodes to be able to
-# support the memory requirements.
-export APPLY_PRESTAGE=$(
-    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
-        echo 1
-    else
-        echo 0
-    fi
-       )
 
 if [[ ${USE_H5} -ge 1 ]]; then
     if [[ ${USE_IME} -ge 1 ]]; then
@@ -80,4 +67,7 @@ srun "${SRUN_PARAMS[@]}" singularity exec --nv \
       PMIX_SECURITY_MODE=native; \
       HOME=''; \
       source ${CONFIG_FILE}; \
+      export DATA_SHARD_MULTIPLIER=\$((\$DATA_SHARD_MULTIPLIER * 2)); \
+      export DGXNNODES=$SLURM_NNODES; \
+      export DGXNGPU=4; \
       bash run_and_time.sh"

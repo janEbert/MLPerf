@@ -13,6 +13,7 @@ echo "STARTING TIMING RUN AT $start_fmt"
 readonly global_rank=${SLURM_PROCID:-}
 readonly local_rank="${LOCAL_RANK:=${SLURM_LOCALID:=${OMPI_COMM_WORLD_LOCAL_RANK:-}}}"
 
+SLURM_NNODES=${SLURM_NNODES:-$DGXNNODES}
 SLURM_NTASKS_PER_NODE=${SLURM_NTASKS_PER_NODE:-$DGXNGPU}
 NUMEPOCHS=${NUMEPOCHS:-50}
 
@@ -37,6 +38,22 @@ NUM_VALIDATION_SAMPLES=${NUM_VALIDATION_SAMPLES:-"-1"}
 DALI_THREADS=${DALI_THREADS:-6}
 INSTANCES=${INSTANCES:-1}
 USE_H5=${USE_H5:-"1"}
+READ_CHUNK_SIZE=${READ_CHUNK_SIZE:-"32"}
+
+# Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
+# to 1 has a large performance impact (either only on the staging part
+# or on the whole run depending on `APPLY_PRESTAGE`).
+APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
+
+# Only apply prestaging when we have enough nodes to be able to
+# support the memory requirements.
+export APPLY_PRESTAGE=$(
+    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
+        echo 1
+    else
+        echo 0
+    fi
+       )
 
 
 PROFILE=${PROFILE:-0}
@@ -131,6 +148,7 @@ fi
 if [[ ${USE_H5} -ge 1 ]]; then
         PARAMS+=(
             --use_h5
+            --read_chunk_size ${READ_CHUNK_SIZE}
         )
 fi
 

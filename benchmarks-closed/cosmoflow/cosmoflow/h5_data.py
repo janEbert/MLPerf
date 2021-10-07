@@ -20,8 +20,20 @@ import utils
 
 @utils.ArgumentParser.register_extension("HDF5 Pipeline")
 def add_h5_argument_parser(parser: argparse.ArgumentParser):
-    parser.add_argument("--use_h5", action="store_true",
-                        help="Whether to use HDF5 data.")
+    parser.add_argument(
+        "--use_h5",
+        action="store_true",
+        help="Whether to use HDF5 data.",
+    )
+    parser.add_argument(
+        "--read_chunk_size",
+        type=int,
+        default=32,
+        help=(
+            "How many rows at once to read from the HDF5 data when "
+            "prestaging and not preshuffling."
+        ),
+    )
 
 
 def stage_files(
@@ -32,10 +44,15 @@ def stage_files(
         label_filenames: List[str],
         shard_mult: int,
         preshuffle_permutation: np.ndarray,
+        read_chunk_size: int,
 ) -> Tuple[List[str], List[str], Callable]:
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
     files_per_node = len(data_filenames) // number_of_nodes
+    assert (
+        preshuffle_permutation is not None
+        or dist_desc.size * read_chunk_size <= len(data_filenames) * shard_mult
+    ), '`read_chunk_size` is too high and will cause errors'
 
     if preshuffle_permutation is not None:
         read_chunk_size = 1
@@ -43,7 +60,6 @@ def stage_files(
         all_indices = all_indices[preshuffle_permutation]
         indices_per_node = files_per_node
     else:
-        read_chunk_size = 32
         all_indices = np.arange(0, len(data_filenames), read_chunk_size)
         indices_per_node = len(all_indices) // number_of_nodes
 
@@ -121,34 +137,59 @@ class ShardedH5Iterator:
             h5_path,
             num_samples,
             batch_size,
+            shard_type,
+            num_shards,
+            shard_id,
             dist_desc,
             shard_mult,
             preshuffle_permutation,
     ):
         self.batch_size = batch_size
 
-        number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
-        current_node = dist_desc.rank // dist_desc.local_size // shard_mult
         self.preshuffle = preshuffle_permutation is not None
-        if self.preshuffle:
-            all_indices = np.arange(0, num_samples)
-            all_indices = all_indices[preshuffle_permutation]
 
-            indices_per_node = num_samples // number_of_nodes
+        if shard_type == 'local':
+            number_of_nodes = \
+                dist_desc.size // dist_desc.local_size // shard_mult
+            current_node = dist_desc.rank // dist_desc.local_size // shard_mult
+
+            if self.preshuffle:
+                all_indices = np.arange(0, num_samples)
+                all_indices = all_indices[preshuffle_permutation]
+
+                indices_per_node = num_samples // number_of_nodes
+            else:
+                all_indices = np.arange(
+                    0,
+                    num_samples,
+                    self.batch_size,
+                )
+
+                indices_per_node = len(all_indices) // number_of_nodes
+
+            next_node = current_node + 1
+            per_node_indices = all_indices[
+                current_node * indices_per_node:next_node * indices_per_node]
+            self.shard_indices = per_node_indices[
+                dist_desc.local_rank::dist_desc.local_size]
+        elif shard_type == 'global':
+            if self.preshuffle:
+                all_indices = np.arange(0, num_samples)
+                all_indices = all_indices[preshuffle_permutation]
+            else:
+                all_indices = np.arange(
+                    0,
+                    num_samples,
+                    self.batch_size,
+                )
+
+            indices_per_shard = len(all_indices) // num_shards
+
+            next_shard = shard_id + 1
+            self.shard_indices = all_indices[
+                shard_id * indices_per_shard:next_shard * indices_per_shard]
         else:
-            all_indices = np.arange(
-                0,
-                num_samples,
-                self.batch_size,
-            )
-
-            indices_per_node = len(all_indices) // number_of_nodes
-
-        next_node = current_node + 1
-        per_node_indices = all_indices[
-            current_node * indices_per_node:next_node * indices_per_node]
-        self.shard_indices = per_node_indices[
-            dist_desc.local_rank::dist_desc.local_size]
+            raise NotImplementedError
 
         atexit.register(self.clean_up)
         self.h5_file = h5py.File(h5_path, 'r')
@@ -197,7 +238,8 @@ class H5CosmoDataset(datam.CosmoDataset):
             preshuffle: bool = False,
             n_samples: int = -1,
             shard_mult: int = 1,
-            prestage: bool = False
+            prestage: bool = False,
+            read_chunk_size: int = 32,
     ) -> Tuple[dali_mxnet.DALIGenericIterator, int, int]:
         data_path = self.root_dir / "train"
 
@@ -210,6 +252,7 @@ class H5CosmoDataset(datam.CosmoDataset):
             prestage=(shard == "local") and prestage,
             preshuffle=preshuffle,
             shard_mult=shard_mult,
+            read_chunk_size=read_chunk_size,
         )
 
         # assert samples % self.dist.size == 0, \
@@ -233,6 +276,7 @@ class H5CosmoDataset(datam.CosmoDataset):
             batch_size: int,
             shard: bool = True,
             n_samples: int = -1,
+            read_chunk_size: int = 32,
     ) -> Tuple[dali_mxnet.DALIGenericIterator, int, int]:
         data_path = self.root_dir / "validation"
 
@@ -242,6 +286,7 @@ class H5CosmoDataset(datam.CosmoDataset):
             n_samples=n_samples,
             shard="global",
             prestage=False,
+            read_chunk_size=read_chunk_size,
         )
         # assert samples % self.dist.size == 0 or not shard, \
         #     f"Cannot divide {samples} items into {self.dist.size} workers"
@@ -268,6 +313,7 @@ class H5CosmoDataset(datam.CosmoDataset):
             shuffle: bool = False,
             preshuffle: bool = False,
             shard_mult: int = 1,
+            read_chunk_size: int = 32,
     ) -> Tuple[Pipeline, int]:
         data_filenames = datam._load_file_list(data_dir, "files_data.lst")
         label_filenames = datam._load_file_list(data_dir, "files_label.lst")
@@ -322,8 +368,10 @@ class H5CosmoDataset(datam.CosmoDataset):
             data_dir_ = data_dir
 
             if prestage:
-                output_path = \
-                    pathlib.Path("/staging_area", "dataset") / data_dir.parts[-1]
+                output_path = (
+                    pathlib.Path("/staging_area", "dataset")
+                    / data_dir.parts[-1]
+                )
                 data_filenames_, label_filenames_ = stage_files(
                     self.dist,
                     data_dir,
@@ -332,6 +380,7 @@ class H5CosmoDataset(datam.CosmoDataset):
                     label_filenames,
                     shard_mult,
                     preshuffle_permutation,
+                    read_chunk_size,
                 )
                 data_dir_ = output_path
 
@@ -363,6 +412,9 @@ class H5CosmoDataset(datam.CosmoDataset):
                     h5_path,
                     len(data_filenames),
                     batch_size,
+                    shard,
+                    num_shards,
+                    shard_id,
                     self.dist,
                     shard_mult,
                     preshuffle_permutation,
@@ -425,10 +477,15 @@ def get_rec_iterators(
             args.training_samples,
             args.data_shard_multiplier,
             args.prestage,
+            read_chunk_size=args.read_chunk_size,
         )
     val_iterator_builder, val_steps, val_samples = \
         cosmoflow_dataset.validation_dataset(
-            args.validation_batch_size, True, args.validation_samples)
+            args.validation_batch_size,
+            True,
+            args.validation_samples,
+            read_chunk_size=args.read_chunk_size,
+        )
 
     # MLPerf logging of batch size, and number of samples used in training
     utils.logger.event(key=utils.logger.constants.GLOBAL_BATCH_SIZE,
