@@ -137,34 +137,59 @@ class ShardedH5Iterator:
             h5_path,
             num_samples,
             batch_size,
+            shard_type,
+            num_shards,
+            shard_id,
             dist_desc,
             shard_mult,
             preshuffle_permutation,
     ):
         self.batch_size = batch_size
 
-        number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
-        current_node = dist_desc.rank // dist_desc.local_size // shard_mult
         self.preshuffle = preshuffle_permutation is not None
-        if self.preshuffle:
-            all_indices = np.arange(0, num_samples)
-            all_indices = all_indices[preshuffle_permutation]
 
-            indices_per_node = num_samples // number_of_nodes
+        if shard_type == 'local':
+            number_of_nodes = \
+                dist_desc.size // dist_desc.local_size // shard_mult
+            current_node = dist_desc.rank // dist_desc.local_size // shard_mult
+
+            if self.preshuffle:
+                all_indices = np.arange(0, num_samples)
+                all_indices = all_indices[preshuffle_permutation]
+
+                indices_per_node = num_samples // number_of_nodes
+            else:
+                all_indices = np.arange(
+                    0,
+                    num_samples,
+                    self.batch_size,
+                )
+
+                indices_per_node = len(all_indices) // number_of_nodes
+
+            next_node = current_node + 1
+            per_node_indices = all_indices[
+                current_node * indices_per_node:next_node * indices_per_node]
+            self.shard_indices = per_node_indices[
+                dist_desc.local_rank::dist_desc.local_size]
+        elif shard_type == 'global':
+            if self.preshuffle:
+                all_indices = np.arange(0, num_samples)
+                all_indices = all_indices[preshuffle_permutation]
+            else:
+                all_indices = np.arange(
+                    0,
+                    num_samples,
+                    self.batch_size,
+                )
+
+            indices_per_shard = len(all_indices) // num_shards
+
+            next_shard = shard_id + 1
+            self.shard_indices = all_indices[
+                shard_id * indices_per_shard:next_shard * indices_per_shard]
         else:
-            all_indices = np.arange(
-                0,
-                num_samples,
-                self.batch_size,
-            )
-
-            indices_per_node = len(all_indices) // number_of_nodes
-
-        next_node = current_node + 1
-        per_node_indices = all_indices[
-            current_node * indices_per_node:next_node * indices_per_node]
-        self.shard_indices = per_node_indices[
-            dist_desc.local_rank::dist_desc.local_size]
+            raise NotImplementedError
 
         atexit.register(self.clean_up)
         self.h5_file = h5py.File(h5_path, 'r')
@@ -386,6 +411,9 @@ class H5CosmoDataset(datam.CosmoDataset):
                     h5_path,
                     len(data_filenames),
                     batch_size,
+                    shard,
+                    num_shards,
+                    shard_id,
                     self.dist,
                     shard_mult,
                     preshuffle_permutation,
