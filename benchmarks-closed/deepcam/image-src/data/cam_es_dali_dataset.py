@@ -144,15 +144,8 @@ class NumpyExternalSource(object):
 
         # some buffer for double buffering
         # determine shapes first, then preallocate
-        # data = np.load(self.data_files_chunks[0][0])
-        # self.data_shape, self.data_dtype = data.shape, data.dtype
-        # label = np.load(self.label_files_chunks[0][0])
-        # self.label_shape, self.label_dtype = label.shape, label.dtype
-
-        self.data_shape, self.data_dtype = (768, 1152, 16), np.float32  # np.load(self.data_files[0]).shape
+        self.data_shape, self.data_dtype = (768, 1152, 16), np.float32
         self.label_shape, self.label_dtype = (768, 1152), np.float32
-        # print("self.data_shape, self.data_dtype", self.data_shape, self.data_dtype)
-        # print("self.label_shape, self.label_dtype", self.label_shape, self.label_dtype)
         # allocate buffers
         self.data_batch = [ np.zeros(self.data_shape, dtype=self.data_dtype) for _ in range(self.batch_size) ]
         self.label_batch = [ np.zeros(self.label_shape, dtype=self.label_dtype) for _ in range(self.batch_size) ] 
@@ -330,13 +323,8 @@ class CamDaliESDataloader(object):
             self.label_files = sorted(glob.glob(os.path.join(self.root_dir, self.prefix_label)))
 
         # get shapes
-        # print(root_dir)
-        # print(self.data_files)
-        self.data_shape = (768, 1152, 16)  # np.load(self.data_files[0]).shape
-        self.label_shape = (768, 1152)  # np.load(self.label_files[0]).shape
-
-            # print(f"self.data_shape: {self.data_shape}")
-            # print(f"self.label_shape: {self.label_shape}")
+        self.data_shape = (768, 1152, 16)
+        self.label_shape = (768, 1152)
 
         # open statsfile
         with h5.File(statsfile, "r") as f:

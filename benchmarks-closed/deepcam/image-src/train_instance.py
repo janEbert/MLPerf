@@ -41,27 +41,22 @@ import utils.mlperf_log_utils as mll
 
 # Torch
 import torch
-import torch.optim as optim
-from torch.autograd import Variable
 
 # Custom
 from driver import Trainer, train_step, Validator, validate
 from utils import parser as prs
 from utils import losses
 from utils import optimizer_helpers as oh
-from utils import graph_helpers as gh
 from utils import bnstats as bns
 from data import get_dataloaders, get_datashapes
 from architecture import deeplab_xception
 
 # data staging stuff
 from data import stage_data as sd
-#from data import stage_data_v2 as sd
-from data import stage_archived_data as sda 
+from data import stage_archived_data as sda
 from data import stage_hdf5_data as sdh5
 
 # DDP
-import torch.distributed as dist
 from torch.nn.parallel.distributed import DistributedDataParallel as DDP
 
 # amp
@@ -77,7 +72,6 @@ def main(pargs):
 
     # this should be global
     global have_wandb
-    # print("starting main")
 
     #init distributed training
     mpi_comm, mpi_instance_comm, instance_id, comm_local_group = comm.init_split(pargs.wireup_method,
@@ -109,7 +103,7 @@ def main(pargs):
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
         if pargs.data_format.endswith("hdf5"):
             if pargs.data_staging_method == "instance":
-                stage_data_handle = sdh5.stage_data_helper  # sdh5.stage_to_NVMe_node_folders_h5
+                stage_data_handle = sdh5.stage_data_helper
                 root_dir = os.path.join(pargs.stage_dir_prefix, f"instance{instance_id}")
             elif pargs.data_staging_method == "nodes":
                 stage_data_handle = sdh5.stage_to_NVMe_node_folders_h5
@@ -133,7 +127,6 @@ def main(pargs):
             prepare_staging=True,
             touch=True
         )
-        # print(f"data root_dir: {root_dir}")
 
         if not full_dataset_per_node:
             pargs.shuffle_mode = "global"
@@ -392,14 +385,7 @@ def main(pargs):
     if pargs.stage_dir_prefix is not None and not pargs.data_format.endswith("dummy"):
         logger.log_start(key = "staging_start")
         # be careful with the seed here, for the global shuffling we should use the same seed or otherwise we break correlation
-        # global_train_size, global_validation_size = stage_data_handle(mpi_comm, num_instances, instance_id, mpi_instance_comm,
-        #                                                               comm_local_size, comm_local_rank,
-        #                                                               pargs, verify = pargs.stage_verify,
-        #                                                               full_dataset_per_node = full_dataset_per_node,
-        #                                                               use_direct_io = pargs.stage_use_direct_io,
-        #                                                               seed = pargs.seed,
-        #                                                               prepare_staging = True)
-        global_train_size, global_validation_size = stage_data_handle(
+        _, _ = stage_data_handle(
             mpi_comm, num_instances, instance_id, mpi_instance_comm,
             comm_local_size, comm_local_rank,
             pargs, verify=pargs.stage_verify,

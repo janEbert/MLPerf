@@ -4,11 +4,6 @@
 # to use the script:
 #   run_and_time.sh
 
-#export OMPI_MCA_btl="^openib" #To prevent deadlock between Horovd and NCCL at 96 nodes
-#export NCCL_SOCKET_IFNAME="ib0"
-#export OMPI_MCA_coll_hcoll_enable=0
-#export NCCL_SOCKET_IFNAME="ib0"
-#export NCCL_COLLNET_ENABLE=0
 # start timing
 start=$(date +%s)
 start_fmt=$(date +%Y-%m-%d\ %r)
@@ -69,19 +64,6 @@ elif [ -n "${PMIX_RANK}" ]; then
 elif [ -n "${PMI_RANK}" ]; then
     WORLD_RANK=${PMI_RANK}
 fi
-
-## set cuda devices
-#if [ -z "${CUDA_AVAILABLE_DEVICES}" ]; then
-##  rank = int(os.getenv("PMI_RANK"))
-##  world_size = int(os.getenv("SLURM_NTASKS"))
-#export CUDA_VISIBLE_DEVICES=$(( WORLD_RANK % 4 ))
-###  $(( WORLD_RANK % 4 ))
-#echo "CUDA_VISIBLE_DEVICES: "${CUDA_VISIBLE_DEVICES}
-#fi
-
-#if [ "$WORLD_RANK" == 0 ]; then
-#  pip list
-#fi
 
 PROFILE_BASE_CMD="nsys profile --mpi-impl=openmpi --trace=cuda,cublas,nvtx,mpi -f true -o ${OUTPUT_DIR}/profile_rank${WORLD_RANK}"
 if [[ ${ENABLE_PROFILING} == 1 ]]; then

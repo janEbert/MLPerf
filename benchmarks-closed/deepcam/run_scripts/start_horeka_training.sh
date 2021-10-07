@@ -10,9 +10,6 @@ SRUN_PARAMS=(
   --cpus-per-task="4"
   --unbuffered
 )
-
-export SLURM_CPU_BIND_USER_SET="ldoms"
-
 #export DATA_DIR_PREFIX="/hkfs/home/dataset/datasets/deepcam_npy/"
 export DATA_DIR_PREFIX="/hkfs/work/workspace/scratch/qv2382-mlperf_data/hdf5s/"
 #export STAGE_DIR_PREFIX="${DATA_CACHE_DIRECTORY}"
