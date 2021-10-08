@@ -5,7 +5,7 @@
 :::MLLOG {"namespace": "", "time_ms": 1633415801097, "event_type": "POINT_IN_TIME", "key": "submission_platform", "value": "HoreKa", "metadata": {"file": "/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/benchmarks-closed/deepcam/image-src/utils/mlperf_log_utils.py", "lineno": 67}}
 :::MLLOG {"namespace": "", "time_ms": 1633415801217, "event_type": "INTERVAL_START", "key": "init_start", "value": null, "metadata": {"file": "./train_instance.py", "lineno": 98}}
 :::MLLOG {"namespace": "", "time_ms": 1633415801221, "event_type": "POINT_IN_TIME", "key": "cache_clear", "value": null, "metadata": {"file": "./train_instance.py", "lineno": 99}}
-:::MLLOG {"namespace": "", "time_ms": 1633415801221, "event_type": "POINT_IN_TIME", "key": "seed", "value": 0, "metadata": {"file": "./train_instance.py", "lineno": 103}}
+:::MLLOG {"namespace": "", "time_ms": 1633415801221, "event_type": "POINT_IN_TIME", "key": "seed", "value": 52, "metadata": {"file": "./train_instance.py", "lineno": 103}}
 :::MLLOG {"namespace": "", "time_ms": 1633415890286, "event_type": "POINT_IN_TIME", "key": "number_of_ranks", "value": 512, "metadata": {"file": "./train_instance.py", "lineno": 211}}
 :::MLLOG {"namespace": "", "time_ms": 1633415890288, "event_type": "POINT_IN_TIME", "key": "number_of_nodes", "value": 128, "metadata": {"file": "./train_instance.py", "lineno": 212}}
 :::MLLOG {"namespace": "", "time_ms": 1633415890288, "event_type": "POINT_IN_TIME", "key": "accelerators_per_node", "value": 4, "metadata": {"file": "./train_instance.py", "lineno": 213}}

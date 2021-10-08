@@ -5,7 +5,7 @@
 :::MLLOG {"namespace": "", "time_ms": 1632983089197, "event_type": "POINT_IN_TIME", "key": "submission_platform", "value": "JUWELS_Booster", "metadata": {"file": "/p/project/jb_benchmark/kesselheim1/MLPerf2/MLPerf/benchmarks-closed/deepcam/image-src/utils/mlperf_log_utils.py", "lineno": 67}}
 :::MLLOG {"namespace": "", "time_ms": 1632983089235, "event_type": "INTERVAL_START", "key": "init_start", "value": null, "metadata": {"file": "./train_instance.py", "lineno": 100}}
 :::MLLOG {"namespace": "", "time_ms": 1632983089240, "event_type": "POINT_IN_TIME", "key": "cache_clear", "value": null, "metadata": {"file": "./train_instance.py", "lineno": 101}}
-:::MLLOG {"namespace": "", "time_ms": 1632983089240, "event_type": "POINT_IN_TIME", "key": "seed", "value": 0, "metadata": {"file": "./train_instance.py", "lineno": 105}}
+:::MLLOG {"namespace": "", "time_ms": 1632983089240, "event_type": "POINT_IN_TIME", "key": "seed", "value": 15, "metadata": {"file": "./train_instance.py", "lineno": 105}}
 :::MLLOG {"namespace": "", "time_ms": 1632983089245, "event_type": "POINT_IN_TIME", "key": "number_of_ranks", "value": 2048, "metadata": {"file": "./train_instance.py", "lineno": 196}}
 :::MLLOG {"namespace": "", "time_ms": 1632983089245, "event_type": "POINT_IN_TIME", "key": "number_of_nodes", "value": 512, "metadata": {"file": "./train_instance.py", "lineno": 197}}
 :::MLLOG {"namespace": "", "time_ms": 1632983089245, "event_type": "POINT_IN_TIME", "key": "accelerators_per_node", "value": 4, "metadata": {"file": "./train_instance.py", "lineno": 198}}
