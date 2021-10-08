@@ -20,8 +20,8 @@ h5py and pmi, which we have added to the containers, and then converted to `.sif
 NVIDIA's Python code for the benchmark out of the container and adjusted it to our needs. This modified code is found
 in the directory `cosmoflow`.
 
-In the directory, `hdf5_io` our conversion method to h5 is implemented.
+In the directory, `hdf5_io` our conversion method to HDF5 is implemented. See below.
 
 # HDF5 IO
-We use hdf5 to store the input data. The conversion is implemented in `convert_cosmoflow_to_hdf5.py`. In summary, this method creates
+We use HDF5 to store the input data. The conversion is implemented in `convert_cosmoflow_to_hdf5.py`. In summary, this method creates
 large `.h5` files for training and validation.
