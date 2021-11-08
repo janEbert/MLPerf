@@ -20,6 +20,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.   
 
 # base stuff
+import ctypes
 import os
 import sys
 import gc
@@ -364,6 +365,7 @@ def train_step(pargs, comm_rank, comm_size,
                step, epoch, trainer,
                train_loader,
                logger, have_wandb, max_num_steps_per_epoch=None):
+    libcudart = ctypes.cdll.LoadLibrary('libcudart.so')
     
     # epoch loop
     for step_in_epoch, (inputs, label, filename) in enumerate(train_loader):
@@ -380,6 +382,13 @@ def train_step(pargs, comm_rank, comm_size,
     
         # step counter
         step += 1
+
+        if step == 20 and comm_rank == 0:
+            libcudart.cudaProfilerStart()
+    
+        if step == 40 and comm_rank == 0:
+            libcudart.cudaProfilerStop()
+            return
     
         #log if requested
         if (step % pargs.logging_frequency == 0):

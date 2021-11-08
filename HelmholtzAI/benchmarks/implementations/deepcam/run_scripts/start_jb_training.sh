@@ -19,9 +19,9 @@ fi
 export WIREUP_METHOD="nccl-slurm"
 export SEED="0"
 
-hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
+hhai_dir="/p/project/ccstdl/ebert1/mlperf/MLPerf/HelmholtzAI/"
 
-base_dir="${hhai_dir}benchmarks-closed/deepcam/"
+base_dir="${hhai_dir}benchmarks/implementations/deepcam/"
 export DEEPCAM_DIR="${base_dir}image-src/"
 
 SCRIPT_DIR="${base_dir}run_scripts/"
@@ -53,4 +53,5 @@ srun "${SRUN_PARAMS[@]}" bash -c '
       export NCCL_DEBUG=INFO; \
       export NCCL_DEBUG_SUBSYS=INIT,GRAPH ; \
       source ${CONFIG_FILE}; \
+      export DATA_FORMAT=dali-dummy; \
       bash run_and_time.sh"'

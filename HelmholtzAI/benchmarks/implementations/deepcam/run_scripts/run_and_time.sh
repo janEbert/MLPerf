@@ -154,7 +154,34 @@ CLEANUP_CMD="cp ${OUTPUT_DIR}/logs/${RUN_TAG}.log /results/; \
 
 # run command
 echo "running ${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} ${PARAMS[@]}"
-${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} "${PARAMS[@]}"; ret_code=$?
+
+OUTPUT_FILE=/p/project/ccstdl/ebert1/mlperf/nsight-out-${SLURM_PROCID}
+PLAINTEXT_OUTPUT_FILE=$OUTPUT_FILE.txt
+
+TRACK_METRICS=(
+    # Float32
+    "sm__sass_thread_inst_executed_op_fadd_pred_on.sum"
+    "sm__sass_thread_inst_executed_op_ffma_pred_on.sum"
+    "sm__sass_thread_inst_executed_op_fmul_pred_on.sum"
+    # Float16
+    "sm__sass_thread_inst_executed_op_hadd_pred_on.sum"
+    "sm__sass_thread_inst_executed_op_hfma_pred_on.sum"
+    "sm__sass_thread_inst_executed_op_hmul_pred_on.sum"
+    # Tensor Core
+    "sm__inst_executed_pipe_tensor.sum"
+)
+metrics=""
+for metric in "${TRACK_METRICS[@]}"; do
+    metrics="$metrics,$metric"
+done
+# Remove prefixed comma
+metrics="${metrics:1}"
+
+ncu -o "$OUTPUT_FILE" --profile-from-start off \
+    --print-summary per-kernel \
+    --target-process all \
+    --metrics "$metrics" \
+    ${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} "${PARAMS[@]}"; ret_code=$?
 
 if [[ $ret_code != 0 ]]; then exit $ret_code; fi
 

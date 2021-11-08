@@ -149,6 +149,8 @@ def main(pargs):
         torch.cuda.manual_seed(seed)
         #necessary for AMP to work
         torch.cuda.set_device(device)
+        # torch.backends.cuda.matmul.allow_tf32 = False
+        # torch.backends.cudnn.allow_tf32 = False
         torch.backends.cudnn.benchmark = not pargs.disable_tuning
     else:
         device = torch.device("cpu")
