@@ -41,7 +41,7 @@ export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
-    hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
+    hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
 
     export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
