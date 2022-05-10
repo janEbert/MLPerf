@@ -45,6 +45,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
     hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
     export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "booster"
@@ -59,6 +60,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
     hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
     export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"

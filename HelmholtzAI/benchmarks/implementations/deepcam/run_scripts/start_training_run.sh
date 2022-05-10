@@ -45,6 +45,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
 
     export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "largebooster"
@@ -73,6 +74,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
     hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
     export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"
