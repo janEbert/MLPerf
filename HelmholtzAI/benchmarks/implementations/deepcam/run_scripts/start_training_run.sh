@@ -41,9 +41,25 @@ export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
+    framework_and_version=pytorch1.10
     hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
 
-    export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
+    n_total_gpus="$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
+    weak_or_strong=$(
+        if [ -z "${TRAINING_INSTANCE_SIZE}" ]; then
+            n_instances=1
+        else
+            n_instances="$((n_total_gpus / TRAINING_INSTANCE_SIZE))"
+        fi
+
+        # Handle both cases where the variable is either not set, or
+        # it is set but we don't actually have multiple instances.
+        if [ "$n_instances" = 1 ]; then
+            echo /strong
+        else
+            echo "${n_instances}x${TRAINING_INSTANCE_SIZE}/weak"
+        fi)
+    export OUTPUT_ROOT="${hhai_dir}results/juwelsbooster_gpu_n${n_total_gpus}_${framework_and_version}${weak_or_strong}/deepcam/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
     mkdir -p "$OUTPUT_DIR"
 

@@ -42,8 +42,19 @@ export STAGING_AREA=/staging_area
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
+    framework_and_version=mxnet1.9
     hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
-    export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
+
+    n_total_gpus="$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
+    weak_or_strong=$(
+        if [ -z "$INSTANCES" ] || [ "$INSTANCES" = 1 ]; then
+            echo /strong
+        else
+            per_instance_size="$((n_total_gpus / INSTANCES))"
+            echo "${INSTANCES}x${per_instance_size}/weak"
+        fi)
+
+    export OUTPUT_ROOT="${hhai_dir}results/juwelsbooster_gpu_n${n_total_gpus}_${framework_and_version}${weak_or_strong}/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
     mkdir -p "$OUTPUT_DIR"
 
