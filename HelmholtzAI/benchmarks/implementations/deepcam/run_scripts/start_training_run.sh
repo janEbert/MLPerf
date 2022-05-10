@@ -73,7 +73,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
 
     if [ -z $RESERVATION ]; then
       SBATCH_PARAMS+=(
-        --account       "hai_cosmo"
+        --account       "hai_mlperf"
       )
     else
       SBATCH_PARAMS+=(
