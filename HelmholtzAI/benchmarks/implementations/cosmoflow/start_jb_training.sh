@@ -37,8 +37,8 @@ else
     fi
 fi
 
-hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
-base_dir="${hhai_dir}benchmarks-closed/cosmoflow/"
+hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
+base_dir="${hhai_dir}benchmarks/cosmoflow/"
 
 export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/jb_benchmark/cosmoflow/results"}
 export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"

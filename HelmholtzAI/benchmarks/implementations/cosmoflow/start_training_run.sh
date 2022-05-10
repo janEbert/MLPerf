@@ -42,7 +42,7 @@ export STAGING_AREA=/staging_area
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
-    hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
+    hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
     export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
 
