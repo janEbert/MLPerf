@@ -43,7 +43,7 @@ base_dir="${hhai_dir}benchmarks/cosmoflow/"
 export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/hai_mlperf/cosmoflow/results"}
 export OUTPUT_ROOT="/p/project/hai_mlperf/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
 
-export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
+export COSMOFLOW_DIR="${base_dir}cosmoflow/"
 # director for image: /workspace/cosmoflow/
 #export CUDA_AVAILABLE_DEVICES="0,1,2,3"
 export CUDA_VISIBLE_DEVICES="0,1,2,3"
