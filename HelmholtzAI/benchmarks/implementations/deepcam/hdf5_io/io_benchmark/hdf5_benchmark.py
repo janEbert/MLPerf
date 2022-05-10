@@ -5,7 +5,7 @@ import time
 import pandas as pd
 import os
 
-hdf5file="/p/scratch/jb_benchmark/deepCam2/train.h5"
+hdf5file="/p/scratch/hai_mlperf/deepCam2/train.h5"
 hdf5file="/p/cscratch/fs/hai_mlperf/deepCam2/train.h5"
 comm=MPI.COMM_WORLD
 rank=comm.rank

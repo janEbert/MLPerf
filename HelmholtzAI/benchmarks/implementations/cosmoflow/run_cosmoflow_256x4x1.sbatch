@@ -1,7 +1,7 @@
 #!/bin/bash
 
 NODES=256
-RESULTS_ROOT="/p/scratch/jb_benchmark/cosmoflow/results/$NODES"
+RESULTS_ROOT="/p/scratch/hai_mlperf/cosmoflow/results/$NODES"
 mkdir -p "$RESULTS_ROOT"
 
 ./start_training_run.sh --system booster --nodes "$NODES" \

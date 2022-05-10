@@ -3,7 +3,7 @@
 
 ml purge
 #ml GCC OpenMPI
-#cd /p/project/jb_benchmark/MLPerf-1.0/mlperf-deepcam/src/deepCam/run_scripts
+#cd /p/project/hai_mlperf/MLPerf-1.0/mlperf-deepcam/src/deepCam/run_scripts
 
 SRUN_PARAMS=(
   --mpi            pspmix
@@ -27,21 +27,21 @@ if [[ ${USE_H5} -ge 1 ]]; then
         export HDF5_USE_FILE_LOCKING=FALSE
         export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/cosmoflow"
     else
-        export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoflow"
+        export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/cosmoflow"
     fi
 else
     if [[ ${USE_IME} -ge 1 ]]; then
         export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
     else
-        export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
+        export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
     fi
 fi
 
 hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
 base_dir="${hhai_dir}benchmarks/cosmoflow/"
 
-export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/jb_benchmark/cosmoflow/results"}
-export OUTPUT_ROOT="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
+export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/hai_mlperf/cosmoflow/results"}
+export OUTPUT_ROOT="/p/project/hai_mlperf/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
 
 export COSMOFLOW_DIR="${base_dir}/cosmoflow/"
 # director for image: /workspace/cosmoflow/
@@ -50,9 +50,9 @@ export CUDA_VISIBLE_DEVICES="0,1,2,3"
 export NCCL_IB_TIMEOUT=20
 
 SCRIPT_DIR="${base_dir}"
-#"/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/"
-# SINGULARITY_FILE="/p/project/jb_benchmark/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
-SINGULARITY_FILE=/p/project/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
+#"/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/"
+# SINGULARITY_FILE="/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
+SINGULARITY_FILE=/p/project/hai_mlperf/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
 
 if [ -z "${CONFIG_FILE}" ]; then
     export CONFIG_FILE="${SCRIPT_DIR}cosmoflow/configs/config_DGXA100_common.sh"

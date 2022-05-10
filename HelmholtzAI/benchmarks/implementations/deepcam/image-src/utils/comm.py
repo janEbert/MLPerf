@@ -180,7 +180,7 @@ def init_split(method, instance_size, batchnorm_group_size=1, verbose=False):
     
     # do the dist init (if we have non trivial instances)
     if instance_size > 1:
-        #path=os.path.join("/p/scratch/jb_benchmark/deepCam2/stores", os.environ["SLURM_JOBID"])
+        #path=os.path.join("/p/scratch/hai_mlperf/deepCam2/stores", os.environ["SLURM_JOBID"])
         #                        init_method="file://"+path,
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         print("creating process group")

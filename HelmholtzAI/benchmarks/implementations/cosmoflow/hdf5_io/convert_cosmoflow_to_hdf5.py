@@ -17,7 +17,7 @@ np.random.seed(42)
 
 print("this is the h5py file we are using:", h5py.__file__)
 
-# # root_file="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy.tar"
+# # root_file="/p/scratch/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy.tar"
 # root_file="/hkfs/work/workspace/scratch/qv2382-mlperf-cosmo-data/" \
 #           "/p/cscratch/fs/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy.tar"
 # # Use either "train" or "validation"
