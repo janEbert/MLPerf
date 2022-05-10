@@ -155,7 +155,7 @@ CLEANUP_CMD="cp ${OUTPUT_DIR}/logs/${RUN_TAG}.log /results/; \
 # run command
 echo "running ${BIND_CMD} ${PROFILE_CMD} python ${RUN_SCRIPT} ${PARAMS[@]}"
 
-OUTPUT_FILE=/p/project/ccstdl/ebert1/mlperf/nsight-out-${SLURM_PROCID}
+OUTPUT_FILE=/p/project/atmlaml/ebert1/mlperf/nsight-out-${SLURM_PROCID}
 PLAINTEXT_OUTPUT_FILE=$OUTPUT_FILE.txt
 
 TRACK_METRICS=(

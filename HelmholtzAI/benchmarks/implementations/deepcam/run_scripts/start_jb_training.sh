@@ -19,7 +19,7 @@ fi
 export WIREUP_METHOD="nccl-slurm"
 export SEED="0"
 
-hhai_dir="/p/project/ccstdl/ebert1/mlperf/MLPerf/HelmholtzAI/"
+hhai_dir="/p/project/atmlaml/ebert1/mlperf/MLPerf/HelmholtzAI/"
 
 base_dir="${hhai_dir}benchmarks/implementations/deepcam/"
 export DEEPCAM_DIR="${base_dir}image-src/"
