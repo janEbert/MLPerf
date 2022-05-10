@@ -25,13 +25,13 @@ export INSTANCES=${INSTANCES:-1}
 if [[ ${USE_H5} -ge 1 ]]; then
     if [[ ${USE_IME} -ge 1 ]]; then
         export HDF5_USE_FILE_LOCKING=FALSE
-        export DATA_DIR_PREFIX="/p/ime-scratch/fs/jb_benchmark/cosmoflow"
+        export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/cosmoflow"
     else
         export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoflow"
     fi
 else
     if [[ ${USE_IME} -ge 1 ]]; then
-        export DATA_DIR_PREFIX="/p/ime-scratch/fs/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
+        export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
     else
         export DATA_DIR_PREFIX="/p/scratch/jb_benchmark/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
     fi
