@@ -2,11 +2,12 @@
 
 #SBATCH --nodes=4
 #SBATCH --tasks-per-node=8
-#SBATCH --gres=gpu
-#SBATCH --time=02:00:00
+#SBATCH --gres=gpu:0
+#SBATCH --time=23:59:59
 #SBATCH --partition=booster
-#SBATCH --account=jucha
+#SBATCH --account=hai_mlperf
 
-ml GCCcore/.9.3.0 GCC/9.3.0 OpenMPI/4.1.0rc1 Python/3.8.5 HDF5/1.10.6 h5py/2.10.0-Python-3.8.5
+ml purge
+ml Stages/2022 GCC/11.2.0 OpenMPI/4.1.2 Python/3.9.6 HDF5/1.12.1 mpi4py/3.1.3 h5py/3.5.0
 
 srun python convert_deepcam_to_hdf5.py
