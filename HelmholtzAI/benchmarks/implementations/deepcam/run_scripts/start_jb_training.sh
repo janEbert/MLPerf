@@ -13,8 +13,14 @@ SRUN_PARAMS=(
 
 export SLURM_CPU_BIND_USER_SET="none"
 
-if [ -z $DATA_DIR_PREFIX ]; then
-    export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/deepcam_hdf5/"
+export USE_IME="${USE_IME:-0}"
+
+if [ -z "$DATA_DIR_PREFIX" ]; then
+    if ((USE_IME)); then
+        export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/deepcam_hdf5/"
+    else
+        export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/deepcam_hdf5/"
+    fi
 fi
 export WIREUP_METHOD="nccl-slurm"
 export SEED="0"
