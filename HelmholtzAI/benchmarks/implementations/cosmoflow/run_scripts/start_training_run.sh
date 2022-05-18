@@ -28,11 +28,12 @@ if [ -z ${TIMELIMIT} ]; then TIMELIMIT="00:10:00"; fi
 
 echo "Job time limit: "${TIMELIMIT}
 
+export SLURM_NTASKS_PER_NODE=4
 SBATCH_PARAMS=(
   --nodes              "${SLURM_NNODES}"
-  --tasks-per-node     "4"
+  --tasks-per-node     "$SLURM_NTASKS_PER_NODE"
   --time               "${TIMELIMIT}"
-  --gres               "gpu:4"
+  --gres               "gpu:$SLURM_NTASKS_PER_NODE"
   --job-name           "cosmoflow-mlperf"
   --time               "${TIMELIMIT}"
 )
