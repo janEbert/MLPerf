@@ -13,7 +13,7 @@ SRUN_PARAMS=(
 
 export SLURM_CPU_BIND_USER_SET="none"
 
-export USE_IME=0
+export USE_IME="${USE_IME:-0}"
 # Whether to use HDF5 data.
 export USE_H5=1
 export READ_CHUNK_SIZE=64
@@ -22,15 +22,15 @@ export READ_CHUNK_SIZE=64
 # (strong scaling has `INSTANCES=1`).
 export INSTANCES=${INSTANCES:-1}
 
-if [[ ${USE_H5} -ge 1 ]]; then
-    if [[ ${USE_IME} -ge 1 ]]; then
+if ((USE_H5)); then
+    if ((USE_IME)); then
         export HDF5_USE_FILE_LOCKING=FALSE
         export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/cosmoflow"
     else
         export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/cosmoflow"
     fi
 else
-    if [[ ${USE_IME} -ge 1 ]]; then
+    if ((USE_IME)); then
         export DATA_DIR_PREFIX="/p/cscratch/fs/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
     else
         export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/cosmoUniverse_2019_05_4parE_tf_v2_numpy"
