@@ -38,10 +38,10 @@ else
 fi
 
 hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
-base_dir="${hhai_dir}benchmarks/cosmoflow/"
+base_dir="${hhai_dir}benchmarks/implementations/cosmoflow/"
 
 export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/hai_mlperf/cosmoflow/results"}
-export OUTPUT_ROOT="/p/project/hai_mlperf/MLPerf-1.0-combined/MLPerf/results/cosmoflow/"
+mkdir -p "$RESULTS_ROOT"
 
 export COSMOFLOW_DIR="${base_dir}cosmoflow/"
 # director for image: /workspace/cosmoflow/
@@ -52,7 +52,7 @@ export NCCL_IB_TIMEOUT=20
 SCRIPT_DIR="${base_dir}"
 #"/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/"
 # SINGULARITY_FILE="/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
-SINGULARITY_FILE=/p/project/hai_mlperf/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
+SINGULARITY_FILE=/p/project/hai_mlperf/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
 
 if [ -z "${CONFIG_FILE}" ]; then
     export CONFIG_FILE="${SCRIPT_DIR}cosmoflow/configs/config_DGXA100_common.sh"

@@ -14,7 +14,7 @@ SRUN_PARAMS=(
 export SLURM_CPU_BIND_USER_SET="none"
 
 if [ -z $DATA_DIR_PREFIX ]; then
-    export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/deepCam2/"
+    export DATA_DIR_PREFIX="/p/scratch/hai_mlperf/deepcam_hdf5/"
 fi
 export WIREUP_METHOD="nccl-slurm"
 export SEED="0"
@@ -25,10 +25,7 @@ base_dir="${hhai_dir}benchmarks/implementations/deepcam/"
 export DEEPCAM_DIR="${base_dir}image-src/"
 
 SCRIPT_DIR="${base_dir}run_scripts/"
-export SINGULARITY_FILE="/p/project/hai_mlperf/nvidia_singularity_images/nvidia_deepcam_21.09-pmi2.sif"
-
-export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
-export OUTPUT_DIR="${OUTPUT_ROOT}"
+export SINGULARITY_FILE="/p/project/hai_mlperf/jb_benchmark/nvidia_singularity_images/nvidia_deepcam_21.09-pmi2.sif"
 
 echo "CONFIG_FILE ${CONFIG_FILE}"
 
@@ -46,7 +43,7 @@ export NCCL_COLLNET_ENABLE=0
 srun "${SRUN_PARAMS[@]}" bash -c '
     MASTER=$(echo "$SLURM_STEP_NODELIST" | cut -d "," -f 1);
     singularity run --nv \
-  --bind "${DATA_DIR_PREFIX}",${SCRIPT_DIR},${OUTPUT_ROOT},/p/project/hai_mlperf/kesselheim1/MLPerf/benchmarks-closed/deepcam/run_scripts/my_pytorch/distributed_c10d.py:/opt/conda/lib/python3.8/site-packages/torch/distributed/distributed_c10d.py ${SINGULARITY_FILE} \
+  --bind "${DATA_DIR_PREFIX}",${SCRIPT_DIR},${OUTPUT_ROOT},${SCRIPT_DIR}my_pytorch/distributed_c10d.py:/opt/conda/lib/python3.8/site-packages/torch/distributed/distributed_c10d.py ${SINGULARITY_FILE} \
     bash -c "\
       export CUDA_VISIBLE_DEVICES="0,1,2,3";  \
       export PMIX_SECURITY_MODE="native";
