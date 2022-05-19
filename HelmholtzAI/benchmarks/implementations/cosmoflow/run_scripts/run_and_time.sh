@@ -48,7 +48,7 @@ APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
 # Only apply prestaging when we have enough nodes to be able to
 # support the memory requirements.
 export APPLY_PRESTAGE=$(
-    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
+    if [ "$(($SLURM_NNODES / $INSTANCES))" -gt 64 ]; then
         echo 1
     else
         echo 0
