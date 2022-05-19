@@ -23,7 +23,7 @@ else
 fi
 
 export WIREUP_METHOD="nccl-slurm-pmi"
-export SEED="0"
+export SEED="${SEED:-0}"
 
 
 export HHAI_DIR="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"

@@ -23,7 +23,7 @@ if [ -z "$DATA_DIR_PREFIX" ]; then
     fi
 fi
 export WIREUP_METHOD="nccl-slurm"
-export SEED="0"
+export SEED="${SEED:-0}"
 
 hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
 

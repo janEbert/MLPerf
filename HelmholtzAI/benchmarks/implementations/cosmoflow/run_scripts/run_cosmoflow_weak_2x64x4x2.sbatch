@@ -4,6 +4,7 @@ export INSTANCES=2
 NODES_PER_INSTANCE=64
 RESULTS_ROOT="/p/scratch/hai_mlperf/cosmoflow/results_weak/$INSTANCES/$NODES"
 mkdir -p "$RESULTS_ROOT"
+export SEED="$(date +%s)"
 
 ./start_training_run.sh --system booster \
     --nodes "$((INSTANCES * NODES_PER_INSTANCE))" \
