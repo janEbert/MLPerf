@@ -37,6 +37,13 @@ else
     fi
 fi
 
+if ((USE_IME)); then
+    find "$DATA_DIR_PREFIX"/train -type f -print0 \
+        | xargs -n1 -P48 -0 ime-ctl --prestage
+    find "$DATA_DIR_PREFIX"/validation -type f -print0 \
+        | xargs -n1 -P48 -0 ime-ctl --prestage
+fi
+
 hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
 base_dir="${hhai_dir}benchmarks/implementations/cosmoflow/"
 
