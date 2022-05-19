@@ -28,11 +28,12 @@ if [ -z ${TIMELIMIT} ]; then TIMELIMIT="00:10:00"; fi
 
 echo "Job time limit: "${TIMELIMIT}
 
+export SLURM_NTASKS_PER_NODE=4
 SBATCH_PARAMS=(
   --nodes              "${SLURM_NNODES}"
-  --tasks-per-node     "4"
+  --tasks-per-node     "$SLURM_NTASKS_PER_NODE"
   --time               "${TIMELIMIT}"
-  --gres               "gpu:4"
+  --gres               "gpu:$SLURM_NTASKS_PER_NODE"
   --job-name           "cosmoflow-mlperf"
   --time               "${TIMELIMIT}"
 )
@@ -42,9 +43,21 @@ export STAGING_AREA=/staging_area
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
-    hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
-    export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
+    framework_and_version=mxnet1.9
+    hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
+
+    n_total_gpus="$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
+    weak_or_strong=$(
+        if [ -z "$INSTANCES" ] || [ "$INSTANCES" = 1 ]; then
+            echo /strong
+        else
+            per_instance_size="$((n_total_gpus / INSTANCES))"
+            echo "${INSTANCES}x${per_instance_size}/weak"
+        fi)
+
+    export OUTPUT_ROOT="${hhai_dir}results/juwelsbooster_gpu_n${n_total_gpus}_${framework_and_version}${weak_or_strong}/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "booster"
@@ -59,6 +72,7 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
     hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
     export OUTPUT_ROOT="${hhai_dir}results/cosmoflow/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"

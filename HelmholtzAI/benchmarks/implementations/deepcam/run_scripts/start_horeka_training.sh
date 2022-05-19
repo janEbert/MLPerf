@@ -16,14 +16,16 @@ export DATA_DIR_PREFIX="/hkfs/work/workspace/scratch/qv2382-mlperf_data/hdf5s/"
 
 if [ "${STRIPE_SIZE}" == "tmp" ];
   then
-    export STAGE_DIR_PREFIX="/tmp/deepcam"
+    export STAGE_DIR_PREFIX="/tmp"
+    #/deepcam"
+    #mkdir /tmp/deepcam
 else
   export STAGE_DIR_PREFIX="/mnt/odfs/${SLURM_JOB_ID}/stripe_${STRIPE_SIZE}"
   export ODFSDIR="${STAGE_DIR_PREFIX}"
 fi
 
 export WIREUP_METHOD="nccl-slurm-pmi"
-export SEED="0"
+export SEED="${SEED:-0}"
 
 
 export HHAI_DIR="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
@@ -48,7 +50,7 @@ cat "${CONFIG_FILE}"
 
 
 srun "${SRUN_PARAMS[@]}" singularity exec --nv \
-  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}",/scratch,/tmp,"${STAGE_DIR_PREFIX}" ${SINGULARITY_FILE} \
+  --bind "${DATA_DIR_PREFIX}","${HHAI_DIR}","${OUTPUT_ROOT}","${DATA_CACHE_DIRECTORY}",/scratch,/tmp ${SINGULARITY_FILE} \
     bash -c "\
       source ${CONFIG_FILE}; \
       export NCCL_DEBUG=INFO; \

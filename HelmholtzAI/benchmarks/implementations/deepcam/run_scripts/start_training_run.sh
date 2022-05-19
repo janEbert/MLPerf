@@ -28,11 +28,12 @@ if [ -z "${TIMELIMIT}" ]; then TIMELIMIT="00:10:00"; fi
 
 echo "Job time limit: "${TIMELIMIT}
 
+export SLURM_NTASKS_PER_NODE=4
 SBATCH_PARAMS=(
   --nodes              "${SLURM_NNODES}"
-  --tasks-per-node     "4"
+  --tasks-per-node     "$SLURM_NTASKS_PER_NODE"
   --time               "${TIMELIMIT}"
-  --gres               "gpu:4"
+  --gres               "gpu:$SLURM_NTASKS_PER_NODE"
   --job-name           "deepcam-mlperf"
   --time               "${TIMELIMIT}"
 )
@@ -41,10 +42,27 @@ export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
-    hhai_dir="/p/project/jb_benchmark/MLPerf-1.0-combined/MLPerf/"
+    framework_and_version=pytorch1.10
+    hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
 
-    export OUTPUT_ROOT="${hhai_dir}results/deepcam2/"
+    n_total_gpus="$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
+    weak_or_strong=$(
+        if [ -z "${TRAINING_INSTANCE_SIZE}" ]; then
+            n_instances=1
+        else
+            n_instances="$((n_total_gpus / TRAINING_INSTANCE_SIZE))"
+        fi
+
+        # Handle both cases where the variable is either not set, or
+        # it is set but we don't actually have multiple instances.
+        if [ "$n_instances" = 1 ]; then
+            echo /strong
+        else
+            echo "${n_instances}x${TRAINING_INSTANCE_SIZE}/weak"
+        fi)
+    export OUTPUT_ROOT="${hhai_dir}results/juwelsbooster_gpu_n${n_total_gpus}_${framework_and_version}${weak_or_strong}/deepcam/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "largebooster"
@@ -56,7 +74,7 @@ if [ "$TRAINING_SYSTEM" == "booster" ]
 
     if [ -z $RESERVATION ]; then
       SBATCH_PARAMS+=(
-        --account       "hai_cosmo"
+        --account       "hai_mlperf"
       )
     else
       SBATCH_PARAMS+=(
@@ -73,12 +91,13 @@ elif [ "$TRAINING_SYSTEM" == "horeka" ]
     hhai_dir="/hkfs/work/workspace/scratch/qv2382-mlperf-combined/MLPerf/"
     export OUTPUT_ROOT="${hhai_dir}results/deepcam/"
     export OUTPUT_DIR="${OUTPUT_ROOT}"
+    mkdir -p "$OUTPUT_DIR"
 
     SBATCH_PARAMS+=(
       --partition     "accelerated"
       --output        "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.out"
       --error         "${OUTPUT_DIR}slurm-deepcam-HoreKa-N-${SLURM_NNODES}-%j.err"
-      --exclude       "hkn[0518,0519,0533,0614,0625,0811]"
+      --exclude       "hkn[0518,0519,0533,0614,0625,0630,0804,0811]"
       --cpu-freq="high"
       --gpu-freq="high"
       --constraint="BEEOND"

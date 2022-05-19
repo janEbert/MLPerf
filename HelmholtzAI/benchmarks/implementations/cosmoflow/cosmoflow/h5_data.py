@@ -47,6 +47,13 @@ def stage_files(
         read_chunk_size: int,
 ) -> Tuple[List[str], List[str], Callable]:
     number_of_nodes = dist_desc.size // dist_desc.local_size // shard_mult
+    if number_of_nodes == 0:
+        print(
+            'WARNING: Number of nodes is too low for the data split. '
+            'Either discard this result or use it only for debugging.'
+        )
+        number_of_nodes = 1
+
     current_node = dist_desc.rank // dist_desc.local_size // shard_mult
     files_per_node = len(data_filenames) // number_of_nodes
     assert (
@@ -151,6 +158,13 @@ class ShardedH5Iterator:
         if shard_type == 'local':
             number_of_nodes = \
                 dist_desc.size // dist_desc.local_size // shard_mult
+            if number_of_nodes == 0:
+                print(
+                    'WARNING: Number of nodes is too low for the data split. '
+                    'Either discard this result or use it only for debugging.'
+                )
+                number_of_nodes = 1
+
             current_node = dist_desc.rank // dist_desc.local_size // shard_mult
 
             if self.preshuffle:

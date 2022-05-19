@@ -25,7 +25,7 @@ export LOCAL_VALIDATION_BATCH_SIZE=8
 # staging parameter
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
-  export STAGE_DIR_PREFIX="/p/scratch/jb_benchmark"
+  export STAGE_DIR_PREFIX="/p/scratch/hai_mlperf"
 else
   # training on horeka
   export STAGE_DIR_PREFIX="/scratch"

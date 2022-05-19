@@ -31,6 +31,9 @@ DATA_SHARD_MULTIPLIER=${DATA_SHARD_MULTIPLIER:-1}
 
 APPLY_LOG_TRANSFORM=${APPLY_LOG_TRANSFORM:-"1"}
 APPLY_SHUFFLE=${APPLY_SHUFFLE:-"1"}
+# If `USE_H5=1`, setting this to 1 has a large performance impact
+# (either only on the staging part or on the whole run depending on
+# `APPLY_PRESTAGE`).
 APPLY_PRESHUFFLE=${APPLY_PRESHUFFLE:-"1"}
 APPLY_PRESTAGE=${APPLY_PRESTAGE:-"1"}
 NUM_TRAINING_SAMPLES=${NUM_TRAINING_SAMPLES:-"-1"}
@@ -40,15 +43,10 @@ INSTANCES=${INSTANCES:-1}
 USE_H5=${USE_H5:-"1"}
 READ_CHUNK_SIZE=${READ_CHUNK_SIZE:-"32"}
 
-# Our HDF5 data is already pre-shuffled. If `USE_H5=1`, setting this
-# to 1 has a large performance impact (either only on the staging part
-# or on the whole run depending on `APPLY_PRESTAGE`).
-APPLY_PRESHUFFLE=$(if [ "$USE_H5" -ge 1 ]; then echo 0; else echo 1; fi)
-
 # Only apply prestaging when we have enough nodes to be able to
 # support the memory requirements.
 export APPLY_PRESTAGE=$(
-    if [ "$(($SLURM_NNODES / $INSTANCES))" -ge 64 ]; then
+    if [ "$(($SLURM_NNODES / $INSTANCES))" -gt 64 ]; then
         echo 1
     else
         echo 0
