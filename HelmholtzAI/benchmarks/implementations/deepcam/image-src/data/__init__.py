@@ -127,7 +127,8 @@ def get_dataloaders(pargs, root_dir, device, seed, comm_size, comm_rank):
         
     else:
         kwargs={}
-        if (pargs.data_format == "dali-numpy") or (pargs.data_format == "dali-es") or (pargs.data_format == "dali-es-disk"):
+        if pargs.data_format.startswith("dali-numpy") or pargs.data_format.startswith("dali-es") or (pargs.data_format == "dali-es-disk"):
+            print("using CamDaliNumpyDataloader data loader for VAL")
             dl_handle = CamDaliNumpyDataloader
             data_filter='data-*.npy'
             label_filter='label-*.npy'
