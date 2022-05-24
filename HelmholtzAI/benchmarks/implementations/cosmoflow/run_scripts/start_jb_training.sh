@@ -58,8 +58,8 @@ export NCCL_IB_TIMEOUT=20
 
 SCRIPT_DIR="${base_dir}"
 #"/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/"
-# SINGULARITY_FILE="/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
-SINGULARITY_FILE=/p/project/hai_mlperf/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
+# APPTAINER_FILE="/p/project/hai_mlperf/MLPerf-1.0/mlperf-cosmoflow/nvidia-cosmo-image.sif"
+APPTAINER_FILE=/p/project/hai_mlperf/jb_benchmark/nvidia_singularity_images/nvidia_cosmoflow_21.09_h5py_update.sif
 
 if [ -z "${CONFIG_FILE}" ]; then
     export CONFIG_FILE="${SCRIPT_DIR}cosmoflow/configs/config_DGXA100_common.sh"
@@ -67,9 +67,9 @@ fi
 echo "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
-srun "${SRUN_PARAMS[@]}" singularity run --nv \
-    --bind "${DATA_DIR_PREFIX}":/data,/tmp:"${STAGING_AREA}","${RESULTS_ROOT}":/results,${SCRIPT_DIR},${OUTPUT_ROOT} \
-    ${SINGULARITY_FILE} \
+srun "${SRUN_PARAMS[@]}" apptainer run --nv \
+    --bind "${DATA_DIR_PREFIX}":/data,/tmp:"${STAGING_AREA}","${RESULTS_ROOT}":/results,"${SCRIPT_DIR}","${OUTPUT_ROOT}" \
+    ${APPTAINER_FILE} \
     bash -c "\
       PMIX_SECURITY_MODE=native; \
       HOME=''; \

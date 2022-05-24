@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # runs benchmark and reports time to convergence
-# this should be run with srun and singularity (see start_jb_training.sh)
+# this should be run with srun and apptainer (see start_jb_training.sh)
 
 # ====================== JB specific settings ============================
 export OMPI_MCA_btl="^openib" #To prevent deadlock between Horovd and NCCL at 96 nodes
@@ -101,7 +101,7 @@ else
   DISTRIBUTED="mpirun --allow-run-as-root --bind-to none --np ${NGPU}"
 fi
 
-# TODO: should the singularity be launched here or with sbatch
+# TODO: should the apptainer be launched here or with sbatch
 if [[ ${PROFILE} -ge 1 ]]; then
     TMPDIR=/results ${DISTRIBUTED} ${PROFILE_COMMAND} python3 train_imagenet.py "${PARAMS[@]}"; ret_code=$?
 else

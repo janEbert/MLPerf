@@ -13,8 +13,8 @@ Example usage:
 # Repo Structure
 
 This implementation is based on the implementation of NVIDIA, based on their containers. In our implementation,
-we use Singularity with an image that is almost identical to NVIDIA's image, except for installations of the packages
-h5py and pmi, which we have added to the containers, and then converted to `.sif` files for Singularity. We have copied
+we use Apptainer with an image that is almost identical to NVIDIA's image, except for installations of the packages
+h5py and pmi, which we have added to the containers, and then converted to `.sif` files for Apptainer. We have copied
 NVIDIA's Python code for the benchmark out of the container and adjusted it to our needs. This modified code is found
 in the directory `image-src`.
 

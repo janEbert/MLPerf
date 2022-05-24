@@ -33,7 +33,7 @@ base_dir="${hhai_dir}benchmarks/implementations/deepcam/"
 export DEEPCAM_DIR="${base_dir}image-src/"
 
 SCRIPT_DIR="${base_dir}run_scripts/"
-export SINGULARITY_FILE="/p/project/hai_mlperf/jb_benchmark/nvidia_singularity_images/nvidia_deepcam_21.09-pmi2.sif"
+export APPTAINER_FILE="/p/project/hai_mlperf/jb_benchmark/nvidia_singularity_images/nvidia_deepcam_21.09-pmi2.sif"
 
 echo "CONFIG_FILE ${CONFIG_FILE}"
 
@@ -50,8 +50,8 @@ export NCCL_COLLNET_ENABLE=0
 
 srun "${SRUN_PARAMS[@]}" bash -c '
     MASTER=$(echo "$SLURM_STEP_NODELIST" | cut -d "," -f 1);
-    singularity run --nv \
-  --bind "${DATA_DIR_PREFIX}",${SCRIPT_DIR},${OUTPUT_ROOT},${SCRIPT_DIR}my_pytorch/distributed_c10d.py:/opt/conda/lib/python3.8/site-packages/torch/distributed/distributed_c10d.py ${SINGULARITY_FILE} \
+    apptainer run --nv \
+  --bind "${DATA_DIR_PREFIX}",${SCRIPT_DIR},${OUTPUT_ROOT},${SCRIPT_DIR}my_pytorch/distributed_c10d.py:/opt/conda/lib/python3.8/site-packages/torch/distributed/distributed_c10d.py ${APPTAINER_FILE} \
     bash -c "\
       export CUDA_VISIBLE_DEVICES="0,1,2,3";  \
       export PMIX_SECURITY_MODE="native";
