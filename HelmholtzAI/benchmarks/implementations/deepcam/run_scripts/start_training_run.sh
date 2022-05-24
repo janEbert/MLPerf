@@ -43,7 +43,7 @@ export TRAINING_SYSTEM="${TRAINING_SYSTEM}"
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
     framework_and_version=pytorch1.10
-    hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
+    hhai_dir="/p/project/hai_mlperf/$USER/MLPerf/HelmholtzAI/"
 
     n_total_gpus="$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
     weak_or_strong=$(

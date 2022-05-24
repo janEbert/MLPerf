@@ -44,7 +44,7 @@ export STAGING_AREA=/staging_area
 if [ "$TRAINING_SYSTEM" == "booster" ]
   then
     framework_and_version=mxnet1.9
-    hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
+    hhai_dir="/p/project/hai_mlperf/$USER/MLPerf/HelmholtzAI/"
 
     n_total_gpus="$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
     weak_or_strong=$(

@@ -44,7 +44,7 @@ if ((USE_IME)); then
         | xargs -n1 -P48 -0 ime-ctl --prestage
 fi
 
-hhai_dir="/p/project/hai_mlperf/ebert1/MLPerf/HelmholtzAI/"
+hhai_dir="/p/project/hai_mlperf/$USER/MLPerf/HelmholtzAI/"
 base_dir="${hhai_dir}benchmarks/implementations/cosmoflow/"
 
 export RESULTS_ROOT=${RESULTS_ROOT:-"/p/scratch/hai_mlperf/cosmoflow/results"}
